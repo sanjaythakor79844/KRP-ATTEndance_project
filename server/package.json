@@ -1,0 +1,22 @@
+{
+  "name": "krp-telegram-bot-server",
+  "version": "1.0.0",
+  "description": "Telegram Bot Server for KRP Admin Dashboard with Google Sheets Integration",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "node-telegram-bot-api": "^0.64.0",
+    "googleapis": "^128.0.0",
+    "node-cron": "^3.0.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
