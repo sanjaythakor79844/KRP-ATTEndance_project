@@ -81,7 +81,7 @@ git push -u origin main
    
    Add these one by one:
    ```
-   MONGODB_URI=mongodb+srv://220390107031_db_user:ABC123@cluster0.xzdo9u2.mongodb.net/krp_academy_db?retryWrites=true&w=majority&appName=Cluster0
+   MONGODB_URI=your_mongodb_connection_string_here
    
    PORT=5000
    
