@@ -1,262 +1,371 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { StatusChip } from './ui/StatusChip';
-import { AttendanceDetails } from './AttendanceDetails';
-import { Send, Eye, X, Edit2 } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Send, RefreshCw, TrendingUp, TrendingDown } from 'lucide-react';
+
+interface Student {
+  id: string;
+  name: string;
+  email: string;
+  status: string;
+}
+
+interface Manager {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
+interface AttendanceSummary {
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  status: string;
+  totalDays: number;
+  presentDays: number;
+  absentDays: number;
+  lateDays: number;
+  percentage: number;
+}
+
+interface TodaySummary {
+  date: string;
+  totalStudents: number;
+  present: number;
+  absent: number;
+  late: number;
+  notMarked: number;
+}
 
 export function Attendance() {
-  const [showDetails, setShowDetails] = useState(false);
-  const [selectedRecord, setSelectedRecord] = useState<any>(null);
-  const [formData, setFormData] = useState({
-    className: '',
-    date: '2025-12-20',
-    time: '09:00',
-    manager: ''
-  });
+  const [students, setStudents] = useState<Student[]>([]);
+  const [managers, setManagers] = useState<Manager[]>([]);
+  const [summaries, setSummaries] = useState<AttendanceSummary[]>([]);
+  const [todaySummary, setTodaySummary] = useState<TodaySummary | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [marking, setMarking] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const [sendingReminder, setSendingReminder] = useState(false);
+  const [selectedManager, setSelectedManager] = useState('');
 
-  const upcomingTriggers = [
-    {
-      className: 'Advanced Makeup Techniques',
-      date: '2025-12-18',
-      time: '09:00',
-      manager: 'Rahul (123456789)',
-      status: 'scheduled',
-    },
-    {
-      className: 'Bridal Makeup Basics',
-      date: '2025-12-19',
-      time: '10:00',
-      manager: 'Priya (987654321)',
-      status: 'scheduled',
-    },
-    {
-      className: 'Hair Styling Workshop',
-      date: '2025-12-20',
-      time: '14:00',
-      manager: 'Rahul (123456789)',
-      status: 'sent',
-    },
-  ];
+  // Load students and summaries
+  useEffect(() => {
+    loadData();
+  }, []);
 
-  const recentSubmissions = [
-    {
-      date: '2025-12-15',
-      className: 'Foundation & Contouring',
-      manager: 'Rahul',
-      totalAttended: 18,
-      status: 'submitted',
-    },
-    {
-      date: '2025-12-14',
-      className: 'Eyebrow Shaping',
-      manager: 'Priya',
-      totalAttended: 22,
-      status: 'submitted',
-    },
-    {
-      date: '2025-12-13',
-      className: 'Color Theory',
-      manager: 'Rahul',
-      totalAttended: 15,
-      status: 'pending',
-    },
-  ];
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      // Load students
+      const studentsRes = await fetch('http://localhost:5000/api/students');
+      const studentsData = await studentsRes.json();
+      if (studentsData.success) {
+        setStudents(studentsData.data);
+      }
 
-  const handleViewDetails = (record: any) => {
-    setSelectedRecord(record);
-    setShowDetails(true);
+      // Load attendance managers
+      const managersRes = await fetch('http://localhost:5000/api/attendance/managers');
+      const managersData = await managersRes.json();
+      if (managersData.success) {
+        setManagers(managersData.data);
+      }
+
+      // Load all summaries
+      const summariesRes = await fetch('http://localhost:5000/api/attendance/all-summaries');
+      const summariesData = await summariesRes.json();
+      if (summariesData.success) {
+        setSummaries(summariesData.data);
+      }
+
+      // Load today's summary
+      const todayRes = await fetch('http://localhost:5000/api/attendance/today');
+      const todayData = await todayRes.json();
+      if (todayData.success) {
+        setTodaySummary(todayData.data);
+      }
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const markAttendance = async (studentId: string, status: 'present' | 'absent' | 'late') => {
+    setMarking(studentId);
+    try {
+      const response = await fetch('http://localhost:5000/api/attendance/mark', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          studentId,
+          status,
+          date: new Date().toISOString().split('T')[0],
+          className: 'General Class'
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        alert(`✅ Attendance marked as ${status}`);
+        loadData(); // Reload data
+      } else {
+        alert(`❌ Failed: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error marking attendance:', error);
+      alert('❌ Error marking attendance');
+    } finally {
+      setMarking(null);
+    }
+  };
+
+  const sendNotifications = async () => {
+    setSending(true);
+    try {
+      const response = await fetch('http://localhost:5000/api/attendance/check-and-notify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        alert(`✅ ${result.message}\n\n${result.results.map((r: any) => 
+          `${r.student}: ${r.type} (${r.percentage}%)`
+        ).join('\n')}`);
+      } else {
+        alert(`❌ Failed: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error sending notifications:', error);
+      alert('❌ Error sending notifications');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const sendReminderToManager = async () => {
+    if (!selectedManager) {
+      alert('Please select an attendance manager');
+      return;
+    }
+
+    setSendingReminder(true);
+    try {
+      const response = await fetch('http://localhost:5000/api/attendance/send-manager-reminder', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          managerId: selectedManager,
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        alert(`✅ ${result.message}`);
+        setSelectedManager('');
+      } else {
+        alert(`❌ Failed to send reminder: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error sending reminder:', error);
+      alert('❌ Error sending reminder');
+    } finally {
+      setSendingReminder(false);
+    }
+  };
+
+  const getPercentageColor = (percentage: number) => {
+    if (percentage >= 80) return 'text-green-600';
+    if (percentage >= 60) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
+  const getPercentageIcon = (percentage: number) => {
+    if (percentage >= 80) return <TrendingUp className="w-5 h-5 text-green-600" />;
+    return <TrendingDown className="w-5 h-5 text-red-600" />;
   };
 
   return (
     <div className="p-8">
-      <div className="mb-8">
-        <h2 className="text-gray-900 mb-2">Attendance Management</h2>
-        <p className="text-gray-600">Manage attendance triggers and view submissions</p>
+      <div className="mb-8 flex justify-between items-center">
+        <div>
+          <h2 className="text-gray-900 mb-2">Attendance Tracking</h2>
+          <p className="text-gray-600">Mark attendance and track student performance</p>
+        </div>
+        <div className="flex gap-3">
+          <Button 
+            icon={RefreshCw}
+            variant="secondary"
+            onClick={loadData}
+            disabled={loading}
+          >
+            {loading ? 'Loading...' : 'Refresh'}
+          </Button>
+          <Button 
+            icon={Send}
+            onClick={sendNotifications}
+            disabled={sending}
+          >
+            {sending ? 'Sending...' : 'Send Notifications'}
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* Form Card */}
-        <div className="lg:col-span-2">
-          <Card>
-            <h3 className="text-gray-900 mb-6">Create Attendance Trigger</h3>
+      {/* Send Reminder to Manager */}
+      <Card className="mb-6 bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-200">
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 bg-purple-200 rounded-full flex items-center justify-center flex-shrink-0">
+            <Send className="w-6 h-6 text-purple-600" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">📧 Send Reminder to Attendance Manager</h3>
+            <p className="text-sm text-gray-600 mb-4">Send an email reminder to the attendance manager to mark today's attendance</p>
             
-            <div className="space-y-5">
-              <div>
-                <label className="block text-sm text-gray-700 mb-2">Class Name</label>
-                <select 
-                  value={formData.className}
-                  onChange={(e) => setFormData({...formData, className: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            <div className="flex gap-3 items-end">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Attendance Manager</label>
+                <select
+                  value={selectedManager}
+                  onChange={(e) => setSelectedManager(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 >
-                  <option value="">Select a class</option>
-                  <option value="Advanced Makeup Techniques">Advanced Makeup Techniques</option>
-                  <option value="Bridal Makeup Basics">Bridal Makeup Basics</option>
-                  <option value="Foundation & Contouring">Foundation & Contouring</option>
-                  <option value="Hair Styling Workshop">Hair Styling Workshop</option>
-                  <option value="Color Theory">Color Theory</option>
+                  <option value="">-- Select Manager --</option>
+                  {managers.map(manager => (
+                    <option key={manager.id} value={manager.id}>
+                      {manager.name} — {manager.email}
+                    </option>
+                  ))}
                 </select>
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-700 mb-2">Date to Send</label>
-                  <input
-                    type="date"
-                    value={formData.date}
-                    onChange={(e) => setFormData({...formData, date: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-700 mb-2">Time to Send</label>
-                  <input
-                    type="time"
-                    value={formData.time}
-                    onChange={(e) => setFormData({...formData, time: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm text-gray-700 mb-2">Send To (Telegram)</label>
-                <select 
-                  value={formData.manager}
-                  onChange={(e) => setFormData({...formData, manager: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Select attendance manager</option>
-                  <option value="Rahul (123456789)">Rahul (Attendance Manager) — 123456789</option>
-                  <option value="Priya (987654321)">Priya (Attendance Manager) — 987654321</option>
-                  <option value="Amit (456789123)">Amit (Attendance Manager) — 456789123</option>
-                </select>
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <Button 
-                  icon={Send}
-                  onClick={() => {
-                    if (!formData.className || !formData.manager) {
-                      alert('Please select a class and attendance manager');
-                      return;
-                    }
-                    alert(`Attendance trigger scheduled!\n\nClass: ${formData.className}\nDate: ${formData.date}\nTime: ${formData.time}\nManager: ${formData.manager}\n\nThe attendance message will be sent to the manager on Telegram at the scheduled time.`);
-                    setFormData({ className: '', date: '2025-12-20', time: '09:00', manager: '' });
-                  }}
-                >
-                  Send to Attendance Manager
-                </Button>
-                <Button 
-                  variant="secondary"
-                  onClick={() => setFormData({ className: '', date: '2025-12-20', time: '09:00', manager: '' })}
-                >
-                  Reset
-                </Button>
-              </div>
-
-              <p className="text-xs text-gray-500 pt-2">
-                This will send an attendance message on Telegram to the selected Attendance Manager.
-              </p>
-            </div>
-          </Card>
-        </div>
-
-        {/* Telegram Preview */}
-        <div className="lg:col-span-1">
-          <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
-            <h3 className="text-gray-900 mb-4">Telegram Message Preview</h3>
-            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-              <p className="text-sm text-gray-900 mb-3">
-                📋 Attendance check for <strong>Advanced Makeup Techniques</strong>
-              </p>
-              <p className="text-sm text-gray-600 mb-4">
-                Date: <strong>December 20, 2025</strong>
-              </p>
-              <p className="text-sm text-gray-700 mb-3">Please reply with:</p>
-              <ol className="text-sm text-gray-700 mb-4 space-y-1 ml-4 list-decimal">
-                <li>Total attended</li>
-                <li>Present student names</li>
-                <li>Absent student names</li>
-              </ol>
-              <button 
-                onClick={() => {
-                  alert('✅ Attendance Submitted!\n\nThis button would normally open a form for the attendance manager to submit attendance details via Telegram.');
-                }}
-                className="w-full bg-green-500 text-white px-4 py-2 rounded-lg text-sm flex items-center justify-center gap-2 hover:bg-green-600 transition-colors"
+              <Button
+                icon={Send}
+                onClick={sendReminderToManager}
+                disabled={sendingReminder || !selectedManager}
+                className="bg-purple-600 hover:bg-purple-700"
               >
-                <span>✅</span>
-                <span>Submit Attendance</span>
-              </button>
+                {sendingReminder ? 'Sending...' : 'Send Reminder'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Today's Summary */}
+      {todaySummary && (
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-blue-600 mb-1">Total Students</p>
+                <p className="text-3xl font-bold text-blue-900">{todaySummary.totalStudents}</p>
+              </div>
+              <div className="w-12 h-12 bg-blue-200 rounded-full flex items-center justify-center">
+                <span className="text-2xl">👥</span>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-green-600 mb-1">Present</p>
+                <p className="text-3xl font-bold text-green-900">{todaySummary.present}</p>
+              </div>
+              <CheckCircle className="w-12 h-12 text-green-600" />
+            </div>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-red-600 mb-1">Absent</p>
+                <p className="text-3xl font-bold text-red-900">{todaySummary.absent}</p>
+              </div>
+              <XCircle className="w-12 h-12 text-red-600" />
+            </div>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-yellow-600 mb-1">Late</p>
+                <p className="text-3xl font-bold text-yellow-900">{todaySummary.late}</p>
+              </div>
+              <Clock className="w-12 h-12 text-yellow-600" />
+            </div>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Not Marked</p>
+                <p className="text-3xl font-bold text-gray-900">{todaySummary.notMarked}</p>
+              </div>
+              <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
+                <span className="text-2xl">❓</span>
+              </div>
             </div>
           </Card>
         </div>
-      </div>
+      )}
 
-      {/* Upcoming Triggers Table */}
+      {/* Mark Attendance Section */}
       <Card className="mb-6">
-        <h3 className="text-gray-900 mb-4">Upcoming Attendance Triggers</h3>
+        <h3 className="text-gray-900 mb-4">Mark Today's Attendance</h3>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200">
-                <th className="text-left py-3 px-4 text-sm text-gray-600">Class Name</th>
-                <th className="text-left py-3 px-4 text-sm text-gray-600">Scheduled Date</th>
-                <th className="text-left py-3 px-4 text-sm text-gray-600">Scheduled Time</th>
-                <th className="text-left py-3 px-4 text-sm text-gray-600">Attendance Manager</th>
+                <th className="text-left py-3 px-4 text-sm text-gray-600">Student Name</th>
+                <th className="text-left py-3 px-4 text-sm text-gray-600">Email</th>
                 <th className="text-left py-3 px-4 text-sm text-gray-600">Status</th>
                 <th className="text-left py-3 px-4 text-sm text-gray-600">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {upcomingTriggers.map((trigger, index) => (
-                <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-3 px-4 text-sm text-gray-900">{trigger.className}</td>
-                  <td className="py-3 px-4 text-sm text-gray-700">{trigger.date}</td>
-                  <td className="py-3 px-4 text-sm text-gray-700">{trigger.time}</td>
-                  <td className="py-3 px-4 text-sm text-gray-700">{trigger.manager}</td>
+              {students.filter(s => s.status === 'active').map((student) => (
+                <tr key={student.id} className="border-b border-gray-100 hover:bg-gray-50">
+                  <td className="py-3 px-4 text-sm text-gray-900 font-medium">{student.name}</td>
+                  <td className="py-3 px-4 text-sm text-gray-700">{student.email}</td>
                   <td className="py-3 px-4">
-                    <StatusChip status={trigger.status} />
+                    <StatusChip status={student.status} />
                   </td>
                   <td className="py-3 px-4">
                     <div className="flex gap-2">
-                      <button 
-                        onClick={() => {
-                          setSelectedRecord(trigger);
-                          setShowDetails(true);
-                        }}
-                        className="text-blue-600 hover:text-blue-700 text-sm flex items-center gap-1"
+                      <button
+                        onClick={() => markAttendance(student.id, 'present')}
+                        disabled={marking === student.id}
+                        className="px-3 py-1.5 bg-green-500 text-white rounded-lg text-sm flex items-center gap-1 hover:bg-green-600 transition-colors disabled:opacity-50"
                       >
-                        <Eye className="w-4 h-4" />
-                        View
+                        <CheckCircle className="w-4 h-4" />
+                        Present
                       </button>
-                      <button 
-                        onClick={() => {
-                          if (window.confirm(`Are you sure you want to edit this trigger for ${trigger.className}?`)) {
-                            setFormData({
-                              className: trigger.className,
-                              date: trigger.date,
-                              time: trigger.time,
-                              manager: trigger.manager
-                            });
-                            alert('Trigger loaded into form for editing. Update the details and click "Send to Attendance Manager" to save changes.');
-                          }
-                        }}
-                        className="text-green-600 hover:text-green-700 text-sm flex items-center gap-1"
+                      <button
+                        onClick={() => markAttendance(student.id, 'absent')}
+                        disabled={marking === student.id}
+                        className="px-3 py-1.5 bg-red-500 text-white rounded-lg text-sm flex items-center gap-1 hover:bg-red-600 transition-colors disabled:opacity-50"
                       >
-                        <Edit2 className="w-4 h-4" />
-                        Edit
+                        <XCircle className="w-4 h-4" />
+                        Absent
                       </button>
-                      <button 
-                        onClick={() => {
-                          if (window.confirm(`Are you sure you want to cancel the attendance trigger for ${trigger.className}?`)) {
-                            alert(`Attendance trigger for ${trigger.className} has been cancelled.`);
-                          }
-                        }}
-                        className="text-red-600 hover:text-red-700 text-sm flex items-center gap-1"
+                      <button
+                        onClick={() => markAttendance(student.id, 'late')}
+                        disabled={marking === student.id}
+                        className="px-3 py-1.5 bg-yellow-500 text-white rounded-lg text-sm flex items-center gap-1 hover:bg-yellow-600 transition-colors disabled:opacity-50"
                       >
-                        <X className="w-4 h-4" />
-                        Cancel
+                        <Clock className="w-4 h-4" />
+                        Late
                       </button>
                     </div>
                   </td>
@@ -267,53 +376,75 @@ export function Attendance() {
         </div>
       </Card>
 
-      {/* Recent Submissions Table */}
+      {/* Attendance Summary */}
       <Card>
-        <h3 className="text-gray-900 mb-4">Recent Attendance Submissions</h3>
+        <h3 className="text-gray-900 mb-4">Attendance Summary & Performance</h3>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200">
-                <th className="text-left py-3 px-4 text-sm text-gray-600">Date</th>
-                <th className="text-left py-3 px-4 text-sm text-gray-600">Class Name</th>
-                <th className="text-left py-3 px-4 text-sm text-gray-600">Attendance Manager</th>
-                <th className="text-left py-3 px-4 text-sm text-gray-600">Total Attended</th>
-                <th className="text-left py-3 px-4 text-sm text-gray-600">Status</th>
-                <th className="text-left py-3 px-4 text-sm text-gray-600">Actions</th>
+                <th className="text-left py-3 px-4 text-sm text-gray-600">Student Name</th>
+                <th className="text-left py-3 px-4 text-sm text-gray-600">Email</th>
+                <th className="text-center py-3 px-4 text-sm text-gray-600">Total Days</th>
+                <th className="text-center py-3 px-4 text-sm text-gray-600">Present</th>
+                <th className="text-center py-3 px-4 text-sm text-gray-600">Absent</th>
+                <th className="text-center py-3 px-4 text-sm text-gray-600">Late</th>
+                <th className="text-center py-3 px-4 text-sm text-gray-600">Percentage</th>
+                <th className="text-center py-3 px-4 text-sm text-gray-600">Performance</th>
               </tr>
             </thead>
             <tbody>
-              {recentSubmissions.map((submission, index) => (
-                <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-3 px-4 text-sm text-gray-900">{submission.date}</td>
-                  <td className="py-3 px-4 text-sm text-gray-900">{submission.className}</td>
-                  <td className="py-3 px-4 text-sm text-gray-700">{submission.manager}</td>
-                  <td className="py-3 px-4 text-sm text-gray-900">{submission.totalAttended}</td>
-                  <td className="py-3 px-4">
-                    <StatusChip status={submission.status} />
+              {summaries.map((summary) => (
+                <tr key={summary.studentId} className="border-b border-gray-100 hover:bg-gray-50">
+                  <td className="py-3 px-4 text-sm text-gray-900 font-medium">{summary.studentName}</td>
+                  <td className="py-3 px-4 text-sm text-gray-700">{summary.studentEmail}</td>
+                  <td className="py-3 px-4 text-sm text-gray-900 text-center font-medium">{summary.totalDays}</td>
+                  <td className="py-3 px-4 text-sm text-center">
+                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full">
+                      <CheckCircle className="w-3 h-3" />
+                      {summary.presentDays}
+                    </span>
                   </td>
-                  <td className="py-3 px-4">
-                    <button 
-                      onClick={() => handleViewDetails(submission)}
-                      className="text-blue-600 hover:text-blue-700 text-sm flex items-center gap-1"
-                    >
-                      <Eye className="w-4 h-4" />
-                      View Details
-                    </button>
+                  <td className="py-3 px-4 text-sm text-center">
+                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 rounded-full">
+                      <XCircle className="w-3 h-3" />
+                      {summary.absentDays}
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 text-sm text-center">
+                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full">
+                      <Clock className="w-3 h-3" />
+                      {summary.lateDays}
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 text-center">
+                    <span className={`text-lg font-bold ${getPercentageColor(summary.percentage)}`}>
+                      {summary.percentage.toFixed(1)}%
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      {getPercentageIcon(summary.percentage)}
+                      <span className={`text-sm font-medium ${getPercentageColor(summary.percentage)}`}>
+                        {summary.percentage >= 80 ? 'Excellent' : summary.percentage >= 60 ? 'Good' : 'Needs Improvement'}
+                      </span>
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      </Card>
 
-      {showDetails && (
-        <AttendanceDetails
-          record={selectedRecord}
-          onClose={() => setShowDetails(false)}
-        />
-      )}
+        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <h4 className="text-sm font-medium text-blue-900 mb-2">📊 Automatic Email Notifications</h4>
+          <ul className="text-sm text-blue-800 space-y-1">
+            <li>• Students with <strong>&lt; 80% attendance</strong> receive a <span className="text-red-600 font-medium">warning email</span></li>
+            <li>• Students with <strong>≥ 80% attendance</strong> receive a <span className="text-green-600 font-medium">congratulations email</span></li>
+            <li>• Click "Send Notifications" button above to trigger emails for all students</li>
+          </ul>
+        </div>
+      </Card>
     </div>
   );
 }

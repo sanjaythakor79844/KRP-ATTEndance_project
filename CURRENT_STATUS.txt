@@ -1,0 +1,17 @@
+✅ SYSTEM RUNNING - All Services Active
+
+Frontend: http://localhost:5173 (RUNNING)
+Backend:  http://localhost:5000 (RUNNING)
+
+Gmail: Connected as sanjaythakor47095@gmail.com
+
+Students:
+1. Sanjay Thakor - sanjaythakor47095@gmail.com
+2. Shyanjali - dattashyanjali81@gmail.com
+
+Ready to:
+- Send Attendance Emails
+- Send Broadcast Messages
+- Send Project Assignments
+
+Open browser: http://localhost:5173

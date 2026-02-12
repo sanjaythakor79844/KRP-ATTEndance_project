@@ -1,146 +1,261 @@
-import { useState } from 'react';
-import { Send, AlertCircle } from 'lucide-react';
+﻿import { useState, useEffect } from 'react';
+import { Send, AlertCircle, Mail, CheckCircle } from 'lucide-react';
+import { Card } from './ui/Card';
+import { Button } from './ui/Button';
 
 interface Student {
   id: string;
   name: string;
-  telegramId: string;
-  eligible: boolean;
-  reason?: string;
+  email: string;
+  status: string;
+}
+
+interface GmailStatus {
+  connected: boolean;
+  user?: {
+    email: string;
+    name: string;
+  };
 }
 
 export function Broadcast() {
-  const [students] = useState<Student[]>([
-    { id: '1', name: 'Alice Johnson', telegramId: '@alice_j', eligible: true },
-    { id: '2', name: 'Bob Smith', telegramId: '@bob_smith', eligible: false, reason: 'Limit reached (3/3)' },
-    { id: '3', name: 'Carol White', telegramId: '@carol_w', eligible: true },
-    { id: '4', name: 'David Lee', telegramId: '@david_lee', eligible: false, reason: 'Status: Inactive' },
-  ]);
-
-  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [students, setStudents] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
+  const [subject, setSubject] = useState('');
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const [gmailStatus, setGmailStatus] = useState<GmailStatus>({ connected: false });
 
-  const eligibleStudents = students.filter((s) => s.eligible);
+  const fetchStudents = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/students');
+      const result = await response.json();
+      if (result.success) {
+        setStudents(result.data);
+      }
+    } catch (error) {
+      console.error('Error fetching students:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchGmailStatus = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/gmail/status');
+      const result = await response.json();
+      setGmailStatus(result);
+    } catch (error) {
+      console.error('Error fetching Gmail status:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchStudents();
+    fetchGmailStatus();
+    const interval = setInterval(fetchGmailStatus, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const eligibleStudents = students.filter(s => s.status === 'active' && s.email);
 
   const handleSelectAll = () => {
     if (selectedStudents.length === eligibleStudents.length) {
       setSelectedStudents([]);
     } else {
-      setSelectedStudents(eligibleStudents.map((s) => s.id));
+      setSelectedStudents(eligibleStudents.map(s => s.id));
     }
   };
 
   const handleToggleStudent = (id: string) => {
     if (selectedStudents.includes(id)) {
-      setSelectedStudents(selectedStudents.filter((sid) => sid !== id));
+      setSelectedStudents(selectedStudents.filter(sid => sid !== id));
     } else {
       setSelectedStudents([...selectedStudents, id]);
     }
   };
 
-  const handleSend = () => {
-    if (selectedStudents.length === 0 || !selectedTemplate) {
-      alert('Please select a template and at least one student');
+  const handleSend = async () => {
+    if (!subject.trim()) {
+      alert('Please enter a subject');
       return;
     }
-    alert(`Broadcast sent to ${selectedStudents.length} student(s) using template: ${selectedTemplate}`);
+    if (!message.trim()) {
+      alert('Please enter a message');
+      return;
+    }
+    if (selectedStudents.length === 0) {
+      alert('Please select at least one student');
+      return;
+    }
+    if (!gmailStatus.connected) {
+      alert('Gmail is not connected');
+      return;
+    }
+
+    setSending(true);
+    try {
+      const response = await fetch('http://localhost:5000/api/broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject, message, studentIds: selectedStudents }),
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        alert('Broadcast sent successfully!');
+        setSubject('');
+        setMessage('');
+        setSelectedStudents([]);
+      } else {
+        alert('Failed: ' + result.error);
+      }
+    } catch (error) {
+      alert('Error sending broadcast');
+    } finally {
+      setSending(false);
+    }
   };
 
+  if (loading) {
+    return <div className="p-8"><div className="text-center">Loading...</div></div>;
+  }
+
   return (
-    <div className="p-6">
+    <div className="p-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Broadcast Messages</h1>
-        <p className="text-sm text-gray-600 mt-2">Send messages to eligible students via Telegram</p>
+        <h1 className="text-3xl font-bold text-gray-900">Gmail Broadcast</h1>
+        <p className="text-gray-600">Send emails to multiple students</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
-            <div className="bg-gradient-to-r from-green-600 to-emerald-600 px-6 py-4 flex items-center justify-between">
-              <span className="text-lg font-semibold text-white flex items-center gap-2">
-                <span className="text-xl">👥</span>
-                Eligible Students
-              </span>
-              <button
-                onClick={handleSelectAll}
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-              >
-                {selectedStudents.length === eligibleStudents.length ? 'Deselect All' : 'Select All'}
-              </button>
-            </div>
-            <div className="divide-y divide-gray-200">
-              {students.map((student) => (
-                <div
-                  key={student.id}
-                  className={`px-4 py-3 flex items-center justify-between ${
-                    !student.eligible ? 'bg-gray-50' : 'hover:bg-gray-50'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={selectedStudents.includes(student.id)}
-                      onChange={() => handleToggleStudent(student.id)}
-                      disabled={!student.eligible}
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{student.name}</div>
-                      <div className="text-xs text-gray-500">{student.telegramId}</div>
-                    </div>
-                  </div>
-                  {!student.eligible && (
-                    <span className="text-xs text-gray-500 italic">{student.reason}</span>
-                  )}
-                </div>
-              ))}
+      {!gmailStatus.connected && (
+        <Card className="mb-6 bg-yellow-50 border-yellow-200">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-yellow-600" />
+            <div>
+              <h3 className="font-medium text-yellow-800">Gmail Not Connected</h3>
+              <p className="text-sm text-yellow-700">Connect Gmail from Dashboard first</p>
             </div>
           </div>
-        </div>
+        </Card>
+      )}
 
-        <div>
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl shadow-lg p-6 border border-blue-100">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <span className="text-2xl">⚙️</span>
-              Broadcast Settings
-            </h3>
-            
+      {gmailStatus.connected && gmailStatus.user && (
+        <Card className="mb-6 bg-green-50 border-green-200">
+          <div className="flex items-center gap-3">
+            <CheckCircle className="w-5 h-5 text-green-600" />
+            <div>
+              <h3 className="font-medium text-green-800">Gmail Connected</h3>
+              <p className="text-sm text-green-700">Connected as: {gmailStatus.user.email}</p>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <Card>
+            <h3 className="text-lg font-semibold mb-4">Compose Email</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Message Template</label>
-                <select
-                  value={selectedTemplate}
-                  onChange={(e) => setSelectedTemplate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Select a template</option>
-                  <option value="new_assignment">New Assignment</option>
-                  <option value="reminder">Reminder</option>
-                  <option value="welcome">Welcome Message</option>
-                </select>
+                <label className="block text-sm font-medium mb-2">Subject</label>
+                <input
+                  type="text"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  placeholder="Enter subject..."
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
               </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Message</label>
+                <textarea
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder="Type message..."
+                  rows={8}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          </Card>
 
-              <div className="bg-white border-2 border-blue-300 rounded-lg p-4 shadow-sm">
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                  <div className="text-sm text-gray-900">
-                    <p className="mb-2 font-semibold text-blue-600">📊 Selection Summary</p>
-                    <p className="mb-1">✅ Selected: <strong>{selectedStudents.length}</strong> students</p>
-                    <p>👤 Eligible: <strong>{eligibleStudents.length}</strong> students</p>
-                  </div>
+          <Card>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Select Students</h3>
+              <Button variant="secondary" onClick={handleSelectAll}>
+                {selectedStudents.length === eligibleStudents.length ? 'Deselect All' : 'Select All'}
+              </Button>
+            </div>
+            <div className="space-y-3">
+              {students.map((student) => {
+                const isEligible = student.status === 'active' && student.email;
+                const isSelected = selectedStudents.includes(student.id);
+                return (
+                  <label
+                    key={student.id}
+                    className={'flex items-center p-4 border rounded-lg cursor-pointer ' + (!isEligible ? 'opacity-50' : isSelected ? 'border-blue-500 bg-blue-50' : '')}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => handleToggleStudent(student.id)}
+                      disabled={!isEligible}
+                      className="mr-3"
+                    />
+                    <div className="flex-1">
+                      <div className="font-medium">{student.name}</div>
+                      <div className="text-sm text-gray-500">{student.email || 'No email'}</div>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          </Card>
+        </div>
+
+        <div className="space-y-6">
+          <Card>
+            <h3 className="text-lg font-semibold mb-4">Send Broadcast</h3>
+            <div className="space-y-4">
+              <div className="bg-gray-50 p-3 rounded-lg text-sm space-y-1">
+                <div>Recipients: {selectedStudents.length}</div>
+                <div>Subject: {subject || 'Not set'}</div>
+                <div className={gmailStatus.connected ? 'text-green-600' : 'text-red-600'}>
+                  Gmail: {gmailStatus.connected ? 'Connected' : 'Not Connected'}
                 </div>
               </div>
-
-              <button
-                onClick={handleSend}
-                disabled={selectedStudents.length === 0 || !selectedTemplate}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              <Button 
+                onClick={handleSend} 
+                disabled={sending || !gmailStatus.connected || selectedStudents.length === 0}
               >
-                <Send className="w-4 h-4" />
-                Send Broadcast
-              </button>
+                <Send className="w-4 h-4 mr-2" />
+                {sending ? 'Sending...' : 'Send to ' + selectedStudents.length + ' Students'}
+              </Button>
             </div>
-          </div>
+          </Card>
+
+          <Card className="bg-blue-50 border-blue-200">
+            <div className="flex items-start gap-3">
+              <Mail className="w-5 h-5 text-blue-600" />
+              <div>
+                <h3 className="font-medium text-blue-900 mb-2">Gmail Integration</h3>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  <li>Professional emails</li>
+                  <li>Active students only</li>
+                  <li>All activity logged</li>
+                </ul>
+                {gmailStatus.connected && gmailStatus.user && (
+                  <div className="mt-3 p-2 bg-white rounded text-xs">
+                    <p className="text-gray-600">Connected:</p>
+                    <p className="font-medium">{gmailStatus.user.email}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </Card>
         </div>
       </div>
     </div>

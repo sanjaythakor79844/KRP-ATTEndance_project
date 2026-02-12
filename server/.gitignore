@@ -28,3 +28,10 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Gmail credentials and tokens
+config/gmail-credentials.json
+config/gmail-token.json
+
+# WhatsApp auth (legacy)
+auth_info/
