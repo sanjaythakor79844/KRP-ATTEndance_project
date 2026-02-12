@@ -517,10 +517,6 @@ export const projectResponseTemplate = (data) => {
           </div>
           ` : ''}
           
-          <div style="text-align: center; margin: 30px 0;">
-            ${button('View Dashboard', dashboardUrl, config.color)}
-          </div>
-          
           <p style="color: #6b7280; font-size: 14px; text-align: center; margin-top: 30px;">
             ${response === 'accept' ? 'Good luck! 🚀' : 'Stay tuned for more opportunities! 📚'}
           </p>
