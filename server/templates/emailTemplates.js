@@ -43,7 +43,7 @@ function adjustColor(color, amount) {
 
 // 1. PROJECT ASSIGNMENT EMAIL
 export const projectAssignmentTemplate = (data) => {
-  const { studentName, studentId, projectId, projectTitle, description, deadline, location, requirements, dashboardUrl = 'http://localhost:5173', serverUrl = 'http://localhost:5000' } = data;
+  const { studentName, studentId, projectId, projectTitle, description, deadline, location, requirements, dashboardUrl = 'http://localhost:5173', serverUrl = process.env.BACKEND_URL || 'https://krp-attendance-project.onrender.com' } = data;
   
   // Create response URLs
   const acceptUrl = `${serverUrl}/api/projects/respond?projectId=${projectId}&studentId=${studentId}&response=accept`;
@@ -349,7 +349,7 @@ export const attendanceCongratulationsTemplate = (data) => {
 
 // 4. ATTENDANCE MANAGER REMINDER
 export const attendanceManagerReminderTemplate = (data) => {
-  const { managerName, managerId, date, students, dashboardUrl = 'http://localhost:5173', serverUrl = 'http://localhost:5000' } = data;
+  const { managerName, managerId, date, students, dashboardUrl = 'http://localhost:5173', serverUrl = process.env.BACKEND_URL || 'https://krp-attendance-project.onrender.com' } = data;
   
   return `
     <!DOCTYPE html>
