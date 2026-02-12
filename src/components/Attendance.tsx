@@ -3,6 +3,7 @@ import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { StatusChip } from './ui/StatusChip';
 import { CheckCircle, XCircle, Clock, Send, RefreshCw, TrendingUp, TrendingDown } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 interface Student {
   id: string;
@@ -59,28 +60,28 @@ export function Attendance() {
     setLoading(true);
     try {
       // Load students
-      const studentsRes = await fetch('http://localhost:5000/api/students');
+      const studentsRes = await fetch(`${API_BASE_URL}/api/students`);
       const studentsData = await studentsRes.json();
       if (studentsData.success) {
         setStudents(studentsData.data);
       }
 
       // Load attendance managers
-      const managersRes = await fetch('http://localhost:5000/api/attendance/managers');
+      const managersRes = await fetch(`${API_BASE_URL}/api/attendance/managers`);
       const managersData = await managersRes.json();
       if (managersData.success) {
         setManagers(managersData.data);
       }
 
       // Load all summaries
-      const summariesRes = await fetch('http://localhost:5000/api/attendance/all-summaries');
+      const summariesRes = await fetch(`${API_BASE_URL}/api/attendance/all-summaries`);
       const summariesData = await summariesRes.json();
       if (summariesData.success) {
         setSummaries(summariesData.data);
       }
 
       // Load today's summary
-      const todayRes = await fetch('http://localhost:5000/api/attendance/today');
+      const todayRes = await fetch(`${API_BASE_URL}/api/attendance/today`);
       const todayData = await todayRes.json();
       if (todayData.success) {
         setTodaySummary(todayData.data);
@@ -95,7 +96,7 @@ export function Attendance() {
   const markAttendance = async (studentId: string, status: 'present' | 'absent' | 'late') => {
     setMarking(studentId);
     try {
-      const response = await fetch('http://localhost:5000/api/attendance/mark', {
+      const response = await fetch(`${API_BASE_URL}/api/attendance/mark`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -127,7 +128,7 @@ export function Attendance() {
   const sendNotifications = async () => {
     setSending(true);
     try {
-      const response = await fetch('http://localhost:5000/api/attendance/check-and-notify', {
+      const response = await fetch(`${API_BASE_URL}/api/attendance/check-and-notify`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -159,7 +160,7 @@ export function Attendance() {
 
     setSendingReminder(true);
     try {
-      const response = await fetch('http://localhost:5000/api/attendance/send-manager-reminder', {
+      const response = await fetch(`${API_BASE_URL}/api/attendance/send-manager-reminder`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
