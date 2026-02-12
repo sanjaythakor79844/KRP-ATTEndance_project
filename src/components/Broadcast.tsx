@@ -1,7 +1,8 @@
 ﻿import { useState, useEffect } from 'react';
-import { Send, AlertCircle, Mail, CheckCircle } from 'lucide-react';
+import { Send, AlertCircle, Mail, CheckCircle, FileText } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
+import { API_BASE_URL } from '../config';
 
 interface Student {
   id: string;
@@ -18,6 +19,13 @@ interface GmailStatus {
   };
 }
 
+interface Template {
+  id: string;
+  name: string;
+  content: string;
+  lastModified: string;
+}
+
 export function Broadcast() {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,10 +34,12 @@ export function Broadcast() {
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [gmailStatus, setGmailStatus] = useState<GmailStatus>({ connected: false });
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('');
 
   const fetchStudents = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/students');
+      const response = await fetch(`${API_BASE_URL}/api/students`);
       const result = await response.json();
       if (result.success) {
         setStudents(result.data);
@@ -43,7 +53,7 @@ export function Broadcast() {
 
   const fetchGmailStatus = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/gmail/status');
+      const response = await fetch(`${API_BASE_URL}/api/gmail/status`);
       const result = await response.json();
       setGmailStatus(result);
     } catch (error) {
@@ -51,9 +61,35 @@ export function Broadcast() {
     }
   };
 
+  const fetchTemplates = async () => {
+    // For now, using hardcoded templates (same as Templates component)
+    // In future, this can be moved to backend API
+    setTemplates([
+      {
+        id: '1',
+        name: 'New Assignment',
+        content: 'Hi {name}, you have a new assignment. Please check your dashboard.',
+        lastModified: '2024-12-10',
+      },
+      {
+        id: '2',
+        name: 'Reminder',
+        content: 'Hi {name}, this is a reminder about your pending assignment.',
+        lastModified: '2024-12-08',
+      },
+      {
+        id: '3',
+        name: 'Welcome Message',
+        content: 'Welcome {name}! You have been added to the automation system.',
+        lastModified: '2024-12-05',
+      },
+    ]);
+  };
+
   useEffect(() => {
     fetchStudents();
     fetchGmailStatus();
+    fetchTemplates();
     const interval = setInterval(fetchGmailStatus, 10000);
     return () => clearInterval(interval);
   }, []);
@@ -96,7 +132,7 @@ export function Broadcast() {
 
     setSending(true);
     try {
-      const response = await fetch('http://localhost:5000/api/broadcast', {
+      const response = await fetch(`${API_BASE_URL}/api/broadcast`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subject, message, studentIds: selectedStudents }),
@@ -109,6 +145,7 @@ export function Broadcast() {
         setSubject('');
         setMessage('');
         setSelectedStudents([]);
+        setSelectedTemplate('');
       } else {
         alert('Failed: ' + result.error);
       }
@@ -116,6 +153,19 @@ export function Broadcast() {
       alert('Error sending broadcast');
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleTemplateSelect = (templateId: string) => {
+    setSelectedTemplate(templateId);
+    if (templateId) {
+      const template = templates.find(t => t.id === templateId);
+      if (template) {
+        setMessage(template.content);
+        if (!subject) {
+          setSubject(template.name);
+        }
+      }
     }
   };
 
@@ -160,6 +210,27 @@ export function Broadcast() {
             <h3 className="text-lg font-semibold mb-4">Compose Email</h3>
             <div className="space-y-4">
               <div>
+                <label className="block text-sm font-medium mb-2 flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  Use Template (Optional)
+                </label>
+                <select
+                  value={selectedTemplate}
+                  onChange={(e) => handleTemplateSelect(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  <option value="">-- Select a template --</option>
+                  {templates.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Select a template to auto-fill subject and message
+                </p>
+              </div>
+              <div>
                 <label className="block text-sm font-medium mb-2">Subject</label>
                 <input
                   type="text"
@@ -178,6 +249,9 @@ export function Broadcast() {
                   rows={8}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Tip: Use {'{name}'} in message to personalize for each student
+                </p>
               </div>
             </div>
           </Card>
