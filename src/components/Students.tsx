@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2 } from 'lucide-react';
 import { Card } from './ui/Card';
+import { API_BASE_URL } from '../config';
 
 interface Student {
   id: string;
@@ -29,7 +30,7 @@ export function Students() {
   // Fetch students from server
   const fetchStudents = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/students');
+      const response = await fetch(`${API_BASE_URL}/api/students`);
       const result = await response.json();
       if (result.success) {
         setStudents(result.data);
@@ -57,7 +58,7 @@ export function Students() {
     try {
       if (editingId) {
         // Update existing student
-        const response = await fetch(`http://localhost:5000/api/students/${editingId}`, {
+        const response = await fetch(`${API_BASE_URL}/api/students/${editingId}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -71,7 +72,7 @@ export function Students() {
         }
       } else {
         // Add new student
-        const response = await fetch('http://localhost:5000/api/students', {
+        const response = await fetch(`${API_BASE_URL}/api/students`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -101,7 +102,7 @@ export function Students() {
 
   const handleDelete = async (id: string) => {
     try {
-      await fetch(`http://localhost:5000/api/students/${id}`, {
+      await fetch(`${API_BASE_URL}/api/students/${id}`, {
         method: 'DELETE',
       });
       await fetchStudents();
