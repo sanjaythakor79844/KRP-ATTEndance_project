@@ -282,6 +282,12 @@ app.post('/api/projects/send', async (req, res) => {
           }
 
           // Use professional project assignment template
+          console.log('🔍 DEBUG: Sending project email');
+          console.log('  BACKEND_URL env:', process.env.BACKEND_URL);
+          console.log('  FRONTEND_URL env:', process.env.FRONTEND_URL);
+          console.log('  serverUrl will be:', process.env.BACKEND_URL || 'https://krp-attendance-project.onrender.com');
+          console.log('  dashboardUrl will be:', process.env.FRONTEND_URL || 'https://krp-att-endance-project.vercel.app');
+          
           const html = emailTemplates.projectAssignment({
             studentName: student.name,
             studentId: student.id,
