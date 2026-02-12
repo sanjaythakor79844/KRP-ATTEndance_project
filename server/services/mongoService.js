@@ -65,6 +65,9 @@ class MongoService {
             // Create indexes if needed
             await this.createIndexes();
             
+            // Initialize default data if database is empty
+            await this.initializeDefaultData();
+            
             return true;
         } catch (error) {
             console.error('⚠️ MongoDB connection error:', error.message);
@@ -72,6 +75,39 @@ class MongoService {
             console.log('💡 Data will not persist between restarts');
             this.isConnected = false;
             return false;
+        }
+    }
+
+    async initializeDefaultData() {
+        try {
+            // Check if attendance managers exist
+            const managersCount = await this.db.collection('attendanceManagers').countDocuments();
+            
+            if (managersCount === 0) {
+                console.log('📝 Initializing default attendance manager...');
+                await this.db.collection('attendanceManagers').insertOne({
+                    id: 'mgr1',
+                    _id: 'mgr1',
+                    name: 'Kajol',
+                    email: 'teamkajolrpaswwan@gmail.com',
+                    phone: '',
+                    role: 'manager',
+                    createdAt: new Date().toISOString()
+                });
+                console.log('✅ Default manager added: Kajol');
+            }
+            
+            // Check if students exist
+            const studentsCount = await this.db.collection('students').countDocuments();
+            
+            if (studentsCount === 0) {
+                console.log('📝 Initializing default students (Batch A)...');
+                await this.db.collection('students').insertMany(this.fallbackData.students);
+                console.log(`✅ Added ${this.fallbackData.students.length} students`);
+            }
+            
+        } catch (error) {
+            console.error('⚠️ Error initializing default data:', error.message);
         }
     }
 
