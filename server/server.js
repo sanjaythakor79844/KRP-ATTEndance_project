@@ -291,8 +291,8 @@ app.post('/api/projects/send', async (req, res) => {
             deadline: project.date,
             location: project.location || 'See dashboard for details',
             requirements: project.requirements || '',
-            dashboardUrl: 'http://localhost:5173',
-            serverUrl: 'http://localhost:5000'
+            dashboardUrl: process.env.FRONTEND_URL || 'https://krp-att-endance-project.vercel.app',
+            serverUrl: process.env.BACKEND_URL || 'https://krp-attendance-project.onrender.com'
           });
           
           const subject = `📢 New Project Assignment: ${project.title}`;
