@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { RefreshCw, Activity, Clock, Zap } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 interface Log {
   id: string;
@@ -26,7 +27,7 @@ export function Logs() {
   const loadLogs = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/logs');
+      const response = await fetch(`${API_BASE_URL}/api/logs`);
       const data = await response.json();
       if (data.success) {
         setLogs(data.data);

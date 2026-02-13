@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Send, Users, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
+import { API_BASE_URL } from '../config';
 
 interface Project {
   id: string;
@@ -35,7 +36,7 @@ export function Projects() {
   // Fetch projects from server
   const fetchProjects = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/projects');
+      const response = await fetch(`${API_BASE_URL}/api/projects`);
       const result = await response.json();
       if (result.success) {
         setProjects(result.data);
@@ -48,7 +49,7 @@ export function Projects() {
   // Fetch students from server
   const fetchStudents = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/students');
+      const response = await fetch(`${API_BASE_URL}/api/students`);
       const result = await response.json();
       if (result.success) {
         setStudents(result.data);
@@ -63,7 +64,7 @@ export function Projects() {
   // Fetch project responses
   const fetchResponses = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/projects/responses');
+      const response = await fetch(`${API_BASE_URL}/api/projects/responses`);
       const result = await response.json();
       if (result.success) {
         setResponses(result.data);
@@ -100,7 +101,7 @@ export function Projects() {
     try {
       if (editingId) {
         // Update existing project
-        const response = await fetch(`http://localhost:5000/api/projects/${editingId}`, {
+        const response = await fetch(`${API_BASE_URL}/api/projects/${editingId}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -118,7 +119,7 @@ export function Projects() {
         setEditingId(null);
       } else {
         // Add new project
-        const response = await fetch('http://localhost:5000/api/projects', {
+        const response = await fetch(`${API_BASE_URL}/api/projects`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -162,7 +163,7 @@ export function Projects() {
     }
     
     try {
-      const response = await fetch(`http://localhost:5000/api/projects/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/projects/${id}`, {
         method: 'DELETE',
       });
       
@@ -187,7 +188,7 @@ export function Projects() {
 
     setSending(true);
     try {
-      const response = await fetch('http://localhost:5000/api/projects/send', {
+      const response = await fetch(`${API_BASE_URL}/api/projects/send`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1247,8 +1247,8 @@ app.post('/api/attendance/send-manager-reminder', async (req, res) => {
       managerId: manager.id,
       date: today,
       students: activeStudents.map(s => ({ id: s.id, name: s.name, email: s.email })),
-      dashboardUrl: 'http://localhost:5173',
-      serverUrl: 'http://localhost:5000'
+      dashboardUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+      serverUrl: process.env.BACKEND_URL || 'http://localhost:5000'
     });
 
     const subject = `📋 Attendance Reminder - ${today}`;
