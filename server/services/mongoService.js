@@ -114,7 +114,6 @@ class MongoService {
     async createIndexes() {
         try {
             // Students collection indexes
-            await this.db.collection('students').createIndex({ phone: 1 }, { unique: true });
             await this.db.collection('students').createIndex({ id: 1 }, { unique: true });
             
             // Projects collection indexes
