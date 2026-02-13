@@ -56,6 +56,12 @@ export function Students() {
     e.preventDefault();
     
     try {
+      // Prepare data - remove empty phone field
+      const dataToSend = {
+        ...formData,
+        phone: formData.phone.trim() || undefined, // Don't send empty phone
+      };
+      
       if (editingId) {
         // Update existing student
         const response = await fetch(`${API_BASE_URL}/api/students/${editingId}`, {
@@ -63,7 +69,7 @@ export function Students() {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(formData),
+          body: JSON.stringify(dataToSend),
         });
         
         const result = await response.json();
@@ -83,7 +89,7 @@ export function Students() {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(formData),
+          body: JSON.stringify(dataToSend),
         });
         
         const result = await response.json();
