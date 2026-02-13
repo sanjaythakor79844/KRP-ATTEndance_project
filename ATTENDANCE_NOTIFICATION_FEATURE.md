@@ -99,7 +99,7 @@ The confirmation email includes:
 1. Start system
 2. Go to Attendance page
 3. Mark a student as Present
-4. Check student's email
+4. Checkstudent's email
 5. ✅ Should receive confirmation email
 
 ### Test Scenario 2: Email Button Marking

@@ -38,10 +38,17 @@ class GmailService {
 
       const { client_secret, client_id, redirect_uris } = credentials.web || credentials.installed;
 
+      // Select redirect URI based on environment
+      // In production, use the production URL (index 1), otherwise use localhost (index 0)
+      const isProduction = process.env.NODE_ENV === 'production' || process.env.BACKEND_URL?.includes('render.com');
+      const redirectUri = isProduction && redirect_uris.length > 1 ? redirect_uris[1] : redirect_uris[0];
+      
+      console.log(`🔧 Using redirect URI: ${redirectUri} (Production: ${isProduction})`);
+
       this.oauth2Client = new google.auth.OAuth2(
         client_id,
         client_secret,
-        redirect_uris[0]
+        redirectUri
       );
 
       // Load existing token if available
