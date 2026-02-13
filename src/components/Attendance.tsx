@@ -1,3 +1,4 @@
+// Attendance Component - v2.0 - All buttons (Present, Absent, Late) enabled
 import { useState, useEffect } from 'react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
@@ -51,7 +52,7 @@ export function Attendance() {
   const [sendingReminder, setSendingReminder] = useState(false);
   const [selectedManager, setSelectedManager] = useState('');
 
-  // Load students and summaries
+  // Load students and summaries on component mount
   useEffect(() => {
     loadData();
   }, []);
