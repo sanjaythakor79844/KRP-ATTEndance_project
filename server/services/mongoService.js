@@ -13,24 +13,24 @@ class MongoService {
         // Fallback in-memory data when MongoDB is not available
         this.fallbackData = {
             students: [
-                { id: '1', _id: '1', name: 'Dakshi Kocharekar', email: 'dakshikocharekar6@gmail.com', phone: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-                { id: '2', _id: '2', name: 'Bhavna', email: 'bhavna.mail.com', phone: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-                { id: '3', _id: '3', name: 'Shafaq', email: 'shafaqsultana@hotmail.com', phone: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-                { id: '4', _id: '4', name: 'Sarah', email: 'Sarahzakir91@gmail.com', phone: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-                { id: '5', _id: '5', name: 'Vaibhavi', email: 'Bhanavibhavi@gmail.com', phone: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-                { id: '6', _id: '6', name: 'Rishakha', email: 'Rishakhattri@gmail.com', phone: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-                { id: '7', _id: '7', name: 'Simran', email: 'd.simranbothra@gmail.com', phone: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-                { id: '8', _id: '8', name: 'Harshi', email: 'harshey.agarwal@gmail.com', phone: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-                { id: '9', _id: '9', name: 'Sangeeta', email: 'madamtutusingsoccer@gmail.com', phone: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-                { id: '10', _id: '10', name: 'Vrindanti', email: 'Ambrevadanti97@gmail.com', phone: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-                { id: '11', _id: '11', name: 'Mayra', email: 'Manmukunda|wal.978@gmail.com', phone: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-                { id: '12', _id: '12', name: 'Kanishka', email: 'kanishkasewairamani@gmail.com', phone: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-                { id: '13', _id: '13', name: 'Prachika', email: 'Mehtaprachika96@gmail.com', phone: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-                { id: '14', _id: '14', name: 'Aviva', email: '', phone: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-                { id: '15', _id: '15', name: 'Khushi', email: '', phone: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+                { id: '1', _id: '1', name: 'Dakshi Kocharekar', email: 'dakshikocharekar6@gmail.com', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+                { id: '2', _id: '2', name: 'Bhavna', email: 'bhavna.mail.com', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+                { id: '3', _id: '3', name: 'Shafaq', email: 'shafaqsultana@hotmail.com', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+                { id: '4', _id: '4', name: 'Sarah', email: 'Sarahzakir91@gmail.com', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+                { id: '5', _id: '5', name: 'Vaibhavi', email: 'Bhanavibhavi@gmail.com', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+                { id: '6', _id: '6', name: 'Rishakha', email: 'Rishakhattri@gmail.com', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+                { id: '7', _id: '7', name: 'Simran', email: 'd.simranbothra@gmail.com', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+                { id: '8', _id: '8', name: 'Harshi', email: 'harshey.agarwal@gmail.com', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+                { id: '9', _id: '9', name: 'Sangeeta', email: 'madamtutusingsoccer@gmail.com', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+                { id: '10', _id: '10', name: 'Vrindanti', email: 'Ambrevadanti97@gmail.com', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+                { id: '11', _id: '11', name: 'Mayra', email: 'Manmukunda|wal.978@gmail.com', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+                { id: '12', _id: '12', name: 'Kanishka', email: 'kanishkasewairamani@gmail.com', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+                { id: '13', _id: '13', name: 'Prachika', email: 'Mehtaprachika96@gmail.com', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+                { id: '14', _id: '14', name: 'Aviva', email: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+                { id: '15', _id: '15', name: 'Khushi', email: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
             ],
             attendanceManagers: [
-                { id: 'mgr1', _id: 'mgr1', name: 'Kajol', email: 'teamkajolrpaswwan@gmail.com', phone: '', role: 'manager', createdAt: new Date().toISOString() }
+                { id: 'mgr1', _id: 'mgr1', name: 'Kajol', email: 'teamkajolrpaswwan@gmail.com', role: 'manager', createdAt: new Date().toISOString() }
             ],
             projects: [],
             projectAssignments: [], // Track who was sent which project and their response
@@ -113,6 +113,17 @@ class MongoService {
 
     async createIndexes() {
         try {
+            // First, try to drop the old phone index if it exists
+            try {
+                await this.db.collection('students').dropIndex('phone_1');
+                console.log('✅ Dropped old phone_1 index');
+            } catch (error) {
+                // Index doesn't exist, that's fine
+                if (error.codeName !== 'IndexNotFound') {
+                    console.log('⚠️ Note: phone_1 index not found (already removed)');
+                }
+            }
+            
             // Students collection indexes
             await this.db.collection('students').createIndex({ id: 1 }, { unique: true });
             

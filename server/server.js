@@ -39,21 +39,21 @@ const loadInitialData = async () => {
     console.log('💡 Data will not persist - add students/projects manually');
     // Batch A Students - January 2026 (Sanjay & Shyanjali are admins, not students)
     students = [
-      { id: '1', name: 'Dakshi Kocharekar', email: 'dakshikocharekar6@gmail.com', phone: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString() },
-      { id: '2', name: 'Bhavna', email: 'bhavna.mail.com', phone: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString() },
-      { id: '3', name: 'Shafaq', email: 'shafaqsultana@hotmail.com', phone: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString() },
-      { id: '4', name: 'Sarah', email: 'Sarahzakir91@gmail.com', phone: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString() },
-      { id: '5', name: 'Vaibhavi', email: 'Bhanavibhavi@gmail.com', phone: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString() },
-      { id: '6', name: 'Rishakha', email: 'Rishakhattri@gmail.com', phone: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString() },
-      { id: '7', name: 'Simran', email: 'd.simranbothra@gmail.com', phone: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString() },
-      { id: '8', name: 'Harshi', email: 'harshey.agarwal@gmail.com', phone: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString() },
-      { id: '9', name: 'Sangeeta', email: 'madamtutusingsoccer@gmail.com', phone: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString() },
-      { id: '10', name: 'Vrindanti', email: 'Ambrevadanti97@gmail.com', phone: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString() },
-      { id: '11', name: 'Mayra', email: 'Manmukunda|wal.978@gmail.com', phone: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString() },
-      { id: '12', name: 'Kanishka', email: 'kanishkasewairamani@gmail.com', phone: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString() },
-      { id: '13', name: 'Prachika', email: 'Mehtaprachika96@gmail.com', phone: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString() },
-      { id: '14', name: 'Aviva', email: '', phone: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString() },
-      { id: '15', name: 'Khushi', email: '', phone: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString() },
+      { id: '1', name: 'Dakshi Kocharekar', email: 'dakshikocharekar6@gmail.com', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString() },
+      { id: '2', name: 'Bhavna', email: 'bhavna.mail.com', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString() },
+      { id: '3', name: 'Shafaq', email: 'shafaqsultana@hotmail.com', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString() },
+      { id: '4', name: 'Sarah', email: 'Sarahzakir91@gmail.com', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString() },
+      { id: '5', name: 'Vaibhavi', email: 'Bhanavibhavi@gmail.com', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString() },
+      { id: '6', name: 'Rishakha', email: 'Rishakhattri@gmail.com', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString() },
+      { id: '7', name: 'Simran', email: 'd.simranbothra@gmail.com', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString() },
+      { id: '8', name: 'Harshi', email: 'harshey.agarwal@gmail.com', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString() },
+      { id: '9', name: 'Sangeeta', email: 'madamtutusingsoccer@gmail.com', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString() },
+      { id: '10', name: 'Vrindanti', email: 'Ambrevadanti97@gmail.com', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString() },
+      { id: '11', name: 'Mayra', email: 'Manmukunda|wal.978@gmail.com', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString() },
+      { id: '12', name: 'Kanishka', email: 'kanishkasewairamani@gmail.com', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString() },
+      { id: '13', name: 'Prachika', email: 'Mehtaprachika96@gmail.com', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString() },
+      { id: '14', name: 'Aviva', email: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString() },
+      { id: '15', name: 'Khushi', email: '', assignmentLimit: 5, currentAssignments: 0, status: 'active', batch: 'A', createdAt: new Date().toISOString() },
     ];
     projects = [];
     attendance = [];
@@ -904,7 +904,7 @@ app.get('/api/attendance/managers', async (req, res) => {
 // Add new attendance manager
 app.post('/api/attendance/managers', async (req, res) => {
   try {
-    const { name, email, phone } = req.body;
+    const { name, email } = req.body;
     
     if (!name || !email) {
       return res.status(400).json({ 
@@ -918,7 +918,6 @@ app.post('/api/attendance/managers', async (req, res) => {
       _id: `mgr${Date.now()}`,
       name,
       email,
-      phone: phone || '',
       role: 'manager',
       createdAt: new Date().toISOString()
     };
