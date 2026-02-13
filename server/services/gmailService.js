@@ -20,13 +20,22 @@ class GmailService {
 
   async initialize() {
     try {
-      // Load credentials
-      if (!fs.existsSync(this.credentialsPath)) {
-        console.log('⚠️ Gmail credentials file not found. Please add gmail-credentials.json to server/config/');
+      // Load credentials from environment variable or file
+      let credentials;
+      
+      if (process.env.GMAIL_CREDENTIALS) {
+        // Load from environment variable (production)
+        console.log('📧 Loading Gmail credentials from environment variable');
+        credentials = JSON.parse(process.env.GMAIL_CREDENTIALS);
+      } else if (fs.existsSync(this.credentialsPath)) {
+        // Load from file (local development)
+        console.log('📧 Loading Gmail credentials from file');
+        credentials = JSON.parse(fs.readFileSync(this.credentialsPath));
+      } else {
+        console.log('⚠️ Gmail credentials not found. Please add GMAIL_CREDENTIALS environment variable or gmail-credentials.json file');
         return;
       }
 
-      const credentials = JSON.parse(fs.readFileSync(this.credentialsPath));
       const { client_secret, client_id, redirect_uris } = credentials.web || credentials.installed;
 
       this.oauth2Client = new google.auth.OAuth2(
