@@ -1,4 +1,5 @@
-// Attendance Component - v2.0 - All buttons (Present, Absent, Late) enabled
+// Attendance Component - v2.1 - THREE BUTTONS GUARANTEED - Updated: 2024-02-13
+// This component MUST show 3 buttons: Present (Green), Absent (Red), Late (Yellow)
 import { useState, useEffect } from 'react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
@@ -324,7 +325,10 @@ export function Attendance() {
 
       {/* Mark Attendance Section */}
       <Card className="mb-6">
-        <h3 className="text-gray-900 mb-4">Mark Today's Attendance</h3>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-gray-900">Mark Today's Attendance</h3>
+          <span className="text-xs text-gray-500">Build: {new Date().toISOString()}</span>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -332,7 +336,7 @@ export function Attendance() {
                 <th className="text-left py-3 px-4 text-sm text-gray-600">Student Name</th>
                 <th className="text-left py-3 px-4 text-sm text-gray-600">Email</th>
                 <th className="text-left py-3 px-4 text-sm text-gray-600">Status</th>
-                <th className="text-left py-3 px-4 text-sm text-gray-600">Actions</th>
+                <th className="text-left py-3 px-4 text-sm text-gray-600">Mark Attendance</th>
               </tr>
             </thead>
             <tbody>
@@ -344,30 +348,38 @@ export function Attendance() {
                     <StatusChip status={student.status} />
                   </td>
                   <td className="py-3 px-4">
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
+                      {/* Present Button */}
                       <button
+                        type="button"
                         onClick={() => markAttendance(student.id, 'present')}
                         disabled={marking === student.id}
-                        className="px-3 py-1.5 bg-green-500 text-white rounded-lg text-sm flex items-center gap-1 hover:bg-green-600 transition-colors disabled:opacity-50"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <CheckCircle className="w-4 h-4" />
-                        Present
+                        <span>Present</span>
                       </button>
+                      
+                      {/* Absent Button */}
                       <button
+                        type="button"
                         onClick={() => markAttendance(student.id, 'absent')}
                         disabled={marking === student.id}
-                        className="px-3 py-1.5 bg-red-500 text-white rounded-lg text-sm flex items-center gap-1 hover:bg-red-600 transition-colors disabled:opacity-50"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <XCircle className="w-4 h-4" />
-                        Absent
+                        <span>Absent</span>
                       </button>
+                      
+                      {/* Late Button */}
                       <button
+                        type="button"
                         onClick={() => markAttendance(student.id, 'late')}
                         disabled={marking === student.id}
-                        className="px-3 py-1.5 bg-yellow-500 text-white rounded-lg text-sm flex items-center gap-1 hover:bg-yellow-600 transition-colors disabled:opacity-50"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-yellow-500 text-white rounded-lg text-sm hover:bg-yellow-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Clock className="w-4 h-4" />
-                        Late
+                        <span>Late</span>
                       </button>
                     </div>
                   </td>
