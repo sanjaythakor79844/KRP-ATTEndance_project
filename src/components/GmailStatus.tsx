@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { Mail, CheckCircle, XCircle, RefreshCw, ExternalLink } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 interface GmailStatus {
   connected: boolean;
@@ -19,7 +20,7 @@ export function GmailStatus() {
 
   const fetchStatus = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/gmail/status');
+      const response = await fetch(`${API_BASE_URL}/api/gmail/status`);
       const data = await response.json();
       setStatus(data);
     } catch (error) {
@@ -31,13 +32,13 @@ export function GmailStatus() {
 
   const handleConnect = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/gmail/auth-url');
+      const response = await fetch(`${API_BASE_URL}/api/gmail/auth-url`);
       const data = await response.json();
       if (data.authUrl) {
         window.open(data.authUrl, '_blank');
         // Poll for connection after opening auth window
         const pollInterval = setInterval(async () => {
-          const statusResponse = await fetch('http://localhost:5000/api/gmail/status');
+          const statusResponse = await fetch(`${API_BASE_URL}/api/gmail/status`);
           const statusData = await statusResponse.json();
           if (statusData.connected) {
             clearInterval(pollInterval);
@@ -55,7 +56,7 @@ export function GmailStatus() {
 
   const handleDisconnect = async () => {
     try {
-      await fetch('http://localhost:5000/api/gmail/disconnect', {
+      await fetch(`${API_BASE_URL}/api/gmail/disconnect`, {
         method: 'POST'
       });
       await fetchStatus();

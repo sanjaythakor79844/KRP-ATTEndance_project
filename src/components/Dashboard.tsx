@@ -3,6 +3,7 @@ import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { GmailStatus } from './GmailStatus';
 import { FolderKanban, Users, Calendar, ClipboardCheck, Clock, CheckCircle, XCircle, AlertCircle, Phone, Send, BarChart3, TrendingUp } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 interface DashboardProps {
   onNavigate?: (page: string) => void;
@@ -46,21 +47,21 @@ export function Dashboard({ onNavigate }: DashboardProps = {}) {
     const fetchData = async () => {
       try {
         // Fetch students
-        const studentsResponse = await fetch('http://localhost:5000/api/students');
+        const studentsResponse = await fetch(`${API_BASE_URL}/api/students`);
         const studentsData = await studentsResponse.json();
         if (studentsData.success) {
           setStudents(studentsData.data);
         }
 
         // Fetch projects
-        const projectsResponse = await fetch('http://localhost:5000/api/projects');
+        const projectsResponse = await fetch(`${API_BASE_URL}/api/projects`);
         const projectsData = await projectsResponse.json();
         if (projectsData.success) {
           setProjects(projectsData.data);
         }
 
         // Fetch logs for recent activities
-        const logsResponse = await fetch('http://localhost:5000/api/logs');
+        const logsResponse = await fetch(`${API_BASE_URL}/api/logs`);
         const logsData = await logsResponse.json();
         if (logsData.success) {
           const activities = logsData.data.slice(0, 5).map((log: any) => ({
