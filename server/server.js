@@ -1202,6 +1202,93 @@ app.get('/api/attendance/today', async (req, res) => {
   }
 });
 
+// Get available dates with attendance records
+app.get('/api/attendance/available-dates', async (req, res) => {
+  try {
+    const attendanceRecords = await mongoService.getAttendance();
+    
+    // Group by date and count records
+    const dateMap = new Map();
+    attendanceRecords.forEach(record => {
+      const date = new Date(record.timestamp).toISOString().split('T')[0];
+      if (!dateMap.has(date)) {
+        dateMap.set(date, { date, count: 0, records: [] });
+      }
+      const dateInfo = dateMap.get(date);
+      dateInfo.count++;
+      dateInfo.records.push(record);
+    });
+    
+    // Convert to array and sort by date (newest first)
+    const dates = Array.from(dateMap.values())
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .map(d => ({
+        date: d.date,
+        displayDate: new Date(d.date).toLocaleDateString('en-IN', { 
+          day: '2-digit', 
+          month: 'short', 
+          year: 'numeric' 
+        }),
+        count: d.count
+      }));
+    
+    res.json({ success: true, data: dates });
+  } catch (error) {
+    console.error('Error getting available dates:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get attendance by specific date
+app.get('/api/attendance/by-date', async (req, res) => {
+  try {
+    const { date } = req.query;
+    
+    if (!date) {
+      return res.status(400).json({ success: false, error: 'Date parameter required' });
+    }
+    
+    let targetDate;
+    if (date === 'today') {
+      targetDate = new Date().toISOString().split('T')[0];
+    } else {
+      targetDate = date;
+    }
+    
+    // Get all attendance records
+    const attendanceRecords = await mongoService.getAttendance();
+    
+    // Filter by date
+    const dateRecords = attendanceRecords.filter(record => {
+      const recordDate = new Date(record.timestamp).toISOString().split('T')[0];
+      return recordDate === targetDate;
+    });
+    
+    // Get student details
+    const students = await mongoService.getStudents();
+    
+    // Enrich records with student info
+    const enrichedRecords = dateRecords.map(record => {
+      const student = students.find(s => s.id === record.studentId);
+      return {
+        studentId: record.studentId,
+        studentName: student ? student.name : 'Unknown',
+        studentEmail: student ? student.email : 'Unknown',
+        status: record.status,
+        timestamp: record.timestamp
+      };
+    });
+    
+    // Sort by student name
+    enrichedRecords.sort((a, b) => a.studentName.localeCompare(b.studentName));
+    
+    res.json({ success: true, data: enrichedRecords });
+  } catch (error) {
+    console.error('Error getting attendance by date:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Send attendance reminder to manager
 app.post('/api/attendance/send-manager-reminder', async (req, res) => {
   try {

@@ -42,6 +42,20 @@ interface TodaySummary {
   notMarked: number;
 }
 
+interface DateAttendance {
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  status: 'present' | 'absent' | 'late' | 'not_marked';
+  timestamp: string;
+}
+
+interface AvailableDate {
+  date: string;
+  displayDate: string;
+  count: number;
+}
+
 export function Attendance() {
   const [students, setStudents] = useState<Student[]>([]);
   const [managers, setManagers] = useState<Manager[]>([]);
@@ -52,11 +66,25 @@ export function Attendance() {
   const [sending, setSending] = useState(false);
   const [sendingReminder, setSendingReminder] = useState(false);
   const [selectedManager, setSelectedManager] = useState('');
+  
+  // Date-wise viewing states
+  const [availableDates, setAvailableDates] = useState<AvailableDate[]>([]);
+  const [selectedDate, setSelectedDate] = useState<string>('today');
+  const [dateAttendance, setDateAttendance] = useState<DateAttendance[]>([]);
+  const [loadingDateData, setLoadingDateData] = useState(false);
 
   // Load students and summaries on component mount
   useEffect(() => {
     loadData();
+    loadAvailableDates();
   }, []);
+
+  // Load date-specific attendance when date changes
+  useEffect(() => {
+    if (selectedDate) {
+      loadDateAttendance(selectedDate);
+    }
+  }, [selectedDate]);
 
   const loadData = async () => {
     setLoading(true);
@@ -92,6 +120,33 @@ export function Attendance() {
       console.error('Error loading data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAvailableDates = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/attendance/available-dates`);
+      const data = await response.json();
+      if (data.success) {
+        setAvailableDates(data.data);
+      }
+    } catch (error) {
+      console.error('Error loading available dates:', error);
+    }
+  };
+
+  const loadDateAttendance = async (date: string) => {
+    setLoadingDateData(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/attendance/by-date?date=${date}`);
+      const data = await response.json();
+      if (data.success) {
+        setDateAttendance(data.data);
+      }
+    } catch (error) {
+      console.error('Error loading date attendance:', error);
+    } finally {
+      setLoadingDateData(false);
     }
   };
 
@@ -388,6 +443,137 @@ export function Attendance() {
             </tbody>
           </table>
         </div>
+      </Card>
+
+      {/* Date-wise Attendance Viewer */}
+      <Card className="mb-6 bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-200">
+        <div className="flex items-start gap-4 mb-4">
+          <div className="w-12 h-12 bg-indigo-200 rounded-full flex items-center justify-center flex-shrink-0">
+            <span className="text-2xl">📅</span>
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">📊 View Attendance by Date</h3>
+            <p className="text-sm text-gray-600 mb-4">Select a date to view attendance records for that specific day</p>
+            
+            <div className="flex gap-3 items-center mb-4">
+              <label className="text-sm font-medium text-gray-700">Select Date:</label>
+              <select
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="px-4 py-2 border border-indigo-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent min-w-[250px]"
+              >
+                <option value="today">📅 Today ({new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })})</option>
+                {availableDates.map((dateInfo) => (
+                  <option key={dateInfo.date} value={dateInfo.date}>
+                    📅 {dateInfo.displayDate} ({dateInfo.count} records)
+                  </option>
+                ))}
+              </select>
+              <Button
+                icon={RefreshCw}
+                variant="secondary"
+                onClick={() => loadDateAttendance(selectedDate)}
+                disabled={loadingDateData}
+                className="ml-auto"
+              >
+                {loadingDateData ? 'Loading...' : 'Refresh'}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Date Attendance Table */}
+        {loadingDateData ? (
+          <div className="text-center py-8">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+            <p className="mt-2 text-gray-600">Loading attendance data...</p>
+          </div>
+        ) : dateAttendance.length > 0 ? (
+          <div className="overflow-x-auto bg-white rounded-lg">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200 bg-gray-50">
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">#</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Student Name</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Email</th>
+                  <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700">Status</th>
+                  <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700">Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dateAttendance.map((record, index) => (
+                  <tr key={record.studentId} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="py-3 px-4 text-sm text-gray-600">{index + 1}</td>
+                    <td className="py-3 px-4 text-sm text-gray-900 font-medium">{record.studentName}</td>
+                    <td className="py-3 px-4 text-sm text-gray-700">{record.studentEmail}</td>
+                    <td className="py-3 px-4 text-center">
+                      {record.status === 'present' && (
+                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
+                          <CheckCircle className="w-4 h-4" />
+                          Present
+                        </span>
+                      )}
+                      {record.status === 'absent' && (
+                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-medium">
+                          <XCircle className="w-4 h-4" />
+                          Absent
+                        </span>
+                      )}
+                      {record.status === 'late' && (
+                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm font-medium">
+                          <Clock className="w-4 h-4" />
+                          Late
+                        </span>
+                      )}
+                      {record.status === 'not_marked' && (
+                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm font-medium">
+                          ❓ Not Marked
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-gray-600 text-center">
+                      {new Date(record.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            
+            {/* Summary for selected date */}
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg border-t border-gray-200">
+              <div className="grid grid-cols-4 gap-4 text-center">
+                <div>
+                  <p className="text-sm text-gray-600">Total</p>
+                  <p className="text-2xl font-bold text-gray-900">{dateAttendance.length}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-green-600">Present</p>
+                  <p className="text-2xl font-bold text-green-700">
+                    {dateAttendance.filter(r => r.status === 'present').length}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-red-600">Absent</p>
+                  <p className="text-2xl font-bold text-red-700">
+                    {dateAttendance.filter(r => r.status === 'absent').length}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-yellow-600">Late</p>
+                  <p className="text-2xl font-bold text-yellow-700">
+                    {dateAttendance.filter(r => r.status === 'late').length}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-8 bg-white rounded-lg">
+            <span className="text-4xl mb-2 block">📭</span>
+            <p className="text-gray-600">No attendance records found for this date</p>
+            <p className="text-sm text-gray-500 mt-1">Try selecting a different date</p>
+          </div>
+        )}
       </Card>
 
       {/* Attendance Summary */}
