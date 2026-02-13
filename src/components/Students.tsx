@@ -66,9 +66,15 @@ export function Students() {
           body: JSON.stringify(formData),
         });
         
-        if (response.ok) {
+        const result = await response.json();
+        
+        if (response.ok && result.success) {
+          alert('✅ Student updated successfully!');
           await fetchStudents();
           setEditingId(null);
+        } else {
+          alert(`❌ Failed to update student: ${result.error || 'Unknown error'}`);
+          console.error('Update error:', result);
         }
       } else {
         // Add new student
@@ -80,8 +86,14 @@ export function Students() {
           body: JSON.stringify(formData),
         });
         
-        if (response.ok) {
+        const result = await response.json();
+        
+        if (response.ok && result.success) {
+          alert('✅ Student added successfully!');
           await fetchStudents();
+        } else {
+          alert(`❌ Failed to add student: ${result.error || 'Unknown error'}`);
+          console.error('Add error:', result);
         }
       }
       
@@ -90,6 +102,7 @@ export function Students() {
       setShowForm(false);
     } catch (error) {
       console.error('Error saving student:', error);
+      alert(`❌ Error: ${error instanceof Error ? error.message : 'Failed to save student'}`);
     }
   };
 
@@ -101,13 +114,27 @@ export function Students() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this student?')) {
+      return;
+    }
+    
     try {
-      await fetch(`${API_BASE_URL}/api/students/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/students/${id}`, {
         method: 'DELETE',
       });
-      await fetchStudents();
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        alert('✅ Student deleted successfully!');
+        await fetchStudents();
+      } else {
+        alert(`❌ Failed to delete student: ${result.error || 'Unknown error'}`);
+        console.error('Delete error:', result);
+      }
     } catch (error) {
       console.error('Error deleting student:', error);
+      alert(`❌ Error: ${error instanceof Error ? error.message : 'Failed to delete student'}`);
     }
   };
 
