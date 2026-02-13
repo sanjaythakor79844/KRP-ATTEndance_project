@@ -1,8 +1,9 @@
-// Professional Attendance Monitoring Component - Complete Version v3.0
+// Complete Professional Attendance System - v4.0 - ALL FEATURES
 import { useState, useEffect } from 'react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
-import { CheckCircle, XCircle, Clock, Calendar, Search, RefreshCw, Send, Download, Filter, TrendingUp, TrendingDown } from 'lucide-react';
+import { StatusChip } from './ui/StatusChip';
+import { CheckCircle, XCircle, Clock, Calendar, Search, RefreshCw, Send, Download, Filter, TrendingUp, TrendingDown, Mail } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 
 interface Student {
@@ -10,6 +11,13 @@ interface Student {
   name: string;
   email: string;
   status: string;
+}
+
+interface Manager {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
 }
 
 interface AttendanceRecord {
@@ -31,6 +39,7 @@ interface AttendanceSummary {
 
 export function Attendance() {
   const [students, setStudents] = useState<Student[]>([]);
+  const [managers, setManagers] = useState<Manager[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [selectedClass, setSelectedClass] = useState<string>('Class 10 A');
   const [searchTerm, setSearchTerm] = useState('');
@@ -38,6 +47,9 @@ export function Attendance() {
   const [summaries, setSummaries] = useState<AttendanceSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [marking, setMarking] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const [sendingReminder, setSendingReminder] = useState(false);
+  const [selectedManager, setSelectedManager] = useState('');
 
   // Summary counts
   const [presentCount, setPresentCount] = useState(0);
@@ -47,6 +59,7 @@ export function Attendance() {
 
   useEffect(() => {
     loadStudents();
+    loadManagers();
     loadAttendanceForDate(selectedDate);
     loadSummaries();
   }, []);
@@ -65,6 +78,18 @@ export function Attendance() {
       }
     } catch (error) {
       console.error('Error loading students:', error);
+    }
+  };
+
+  const loadManagers = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/attendance/managers`);
+      const data = await response.json();
+      if (data.success) {
+        setManagers(data.data);
+      }
+    } catch (error) {
+      console.error('Error loading managers:', error);
     }
   };
 
@@ -106,26 +131,82 @@ export function Attendance() {
   const markAttendance = async (studentId: string, status: 'present' | 'absent' | 'late') => {
     setMarking(studentId);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/attendance`, {
+      const response = await fetch(`${API_BASE_URL}/api/attendance/mark`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           studentId,
           status,
           date: selectedDate,
-          timestamp: new Date().toISOString()
+          className: selectedClass
         })
       });
 
-      if (response.ok) {
+      const result = await response.json();
+      if (result.success) {
         await loadAttendanceForDate(selectedDate);
         await loadSummaries();
+      } else {
+        alert(`Failed: ${result.error}`);
       }
     } catch (error) {
       console.error('Error marking attendance:', error);
       alert('Failed to mark attendance');
     } finally {
       setMarking(null);
+    }
+  };
+
+  const sendNotifications = async () => {
+    setSending(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/attendance/check-and-notify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        alert(`✅ ${result.message}\n\n${result.results.map((r: any) => 
+          `${r.student}: ${r.type} (${r.percentage}%)`
+        ).join('\n')}`);
+      } else {
+        alert(`❌ Failed: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error sending notifications:', error);
+      alert('❌ Error sending notifications');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const sendReminderToManager = async () => {
+    if (!selectedManager) {
+      alert('Please select an attendance manager');
+      return;
+    }
+
+    setSendingReminder(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/attendance/send-manager-reminder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ managerId: selectedManager })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        alert(`✅ ${result.message}`);
+        setSelectedManager('');
+      } else {
+        alert(`❌ Failed to send reminder: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error sending reminder:', error);
+      alert('❌ Error sending reminder');
+    } finally {
+      setSendingReminder(false);
     }
   };
 
@@ -145,13 +226,12 @@ export function Attendance() {
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
-    const options: Intl.DateTimeFormatOptions = { 
+    return date.toLocaleDateString('en-US', { 
       weekday: 'short', 
       month: 'short', 
       day: 'numeric',
       year: 'numeric'
-    };
-    return date.toLocaleDateString('en-US', options);
+    });
   };
 
   const getPerformanceLabel = (percentage: number) => {
@@ -175,27 +255,68 @@ export function Attendance() {
               variant="secondary"
               onClick={() => {
                 loadStudents();
+                loadManagers();
                 loadAttendanceForDate(selectedDate);
                 loadSummaries();
               }}
               disabled={loading}
             >
-              Refresh
+              {loading ? 'Loading...' : 'Refresh'}
             </Button>
             <Button
               icon={Send}
-              onClick={() => alert('Send notifications feature')}
+              onClick={sendNotifications}
+              disabled={sending}
             >
-              Send Notifications
+              {sending ? 'Sending...' : 'Send Notifications'}
             </Button>
           </div>
         </div>
       </div>
 
+      {/* Send Reminder to Manager */}
+      <Card className="mb-6 bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-200">
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 bg-purple-200 rounded-full flex items-center justify-center flex-shrink-0">
+            <Mail className="w-6 h-6 text-purple-600" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">📧 Send Reminder to Attendance Manager</h3>
+            <p className="text-sm text-gray-600 mb-4">Send an email reminder to the attendance manager to mark today's attendance</p>
+            
+            <div className="flex gap-3 items-end">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Attendance Manager</label>
+                <select
+                  value={selectedManager}
+                  onChange={(e) => setSelectedManager(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="">-- Select Manager --</option>
+                  {managers.map(manager => (
+                    <option key={manager.id} value={manager.id}>
+                      {manager.name} — {manager.email}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Button
+                icon={Send}
+                onClick={sendReminderToManager}
+                disabled={sendingReminder || !selectedManager}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                {sendingReminder ? 'Sending...' : 'Send Reminder'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Card>
+
       {/* Date Selector and Summary Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6">
         {/* Date Selector Card */}
-        <Card className="lg:col-span-1 bg-white">
+        <Card className="lg:col-span-1 bg-white shadow-md hover:shadow-lg transition-shadow">
           <div className="flex items-center gap-3 mb-3">
             <Calendar className="w-5 h-5 text-blue-600" />
             <span className="font-medium text-gray-900">Today</span>
@@ -212,7 +333,7 @@ export function Attendance() {
         </Card>
 
         {/* Summary Cards */}
-        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200 shadow-md hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -224,7 +345,7 @@ export function Attendance() {
           </div>
         </Card>
 
-        <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200">
+        <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200 shadow-md hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -236,7 +357,7 @@ export function Attendance() {
           </div>
         </Card>
 
-        <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
+        <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200 shadow-md hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -248,7 +369,7 @@ export function Attendance() {
           </div>
         </Card>
 
-        <Card className="bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200">
+        <Card className="bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200 shadow-md hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -262,7 +383,7 @@ export function Attendance() {
       </div>
 
       {/* Mark Today's Attendance Section */}
-      <Card className="mb-6">
+      <Card className="mb-6 shadow-md">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Mark Today's Attendance</h2>
           <div className="flex items-center gap-3">
@@ -307,14 +428,14 @@ export function Attendance() {
               {filteredStudents.map((student, index) => {
                 const status = getStudentStatus(student.id);
                 return (
-                  <tr key={student.id} className="border-b border-gray-100 hover:bg-gray-50">
+                  <tr key={student.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                     <td className="py-3 px-4 text-sm text-gray-600">{index + 1}</td>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${
-                          status === 'present' ? 'bg-green-500' :
-                          status === 'absent' ? 'bg-red-500' :
-                          status === 'late' ? 'bg-yellow-500' :
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold transition-all ${
+                          status === 'present' ? 'bg-green-500 shadow-green-200 shadow-lg' :
+                          status === 'absent' ? 'bg-red-500 shadow-red-200 shadow-lg' :
+                          status === 'late' ? 'bg-yellow-500 shadow-yellow-200 shadow-lg' :
                           'bg-gray-400'
                         }`}>
                           {status === 'present' && <CheckCircle className="w-5 h-5" />}
@@ -353,7 +474,7 @@ export function Attendance() {
                         <button
                           onClick={() => markAttendance(student.id, 'present')}
                           disabled={marking === student.id}
-                          className="p-2 rounded-full hover:bg-green-100 transition-colors disabled:opacity-50"
+                          className="p-2 rounded-full hover:bg-green-100 transition-all hover:scale-110 disabled:opacity-50"
                           title="Mark Present"
                         >
                           <CheckCircle className="w-5 h-5 text-green-600" />
@@ -361,7 +482,7 @@ export function Attendance() {
                         <button
                           onClick={() => markAttendance(student.id, 'absent')}
                           disabled={marking === student.id}
-                          className="p-2 rounded-full hover:bg-red-100 transition-colors disabled:opacity-50"
+                          className="p-2 rounded-full hover:bg-red-100 transition-all hover:scale-110 disabled:opacity-50"
                           title="Mark Absent"
                         >
                           <XCircle className="w-5 h-5 text-red-600" />
@@ -369,19 +490,19 @@ export function Attendance() {
                         <button
                           onClick={() => markAttendance(student.id, 'late')}
                           disabled={marking === student.id}
-                          className="p-2 rounded-full hover:bg-yellow-100 transition-colors disabled:opacity-50"
+                          className="p-2 rounded-full hover:bg-yellow-100 transition-all hover:scale-110 disabled:opacity-50"
                           title="Mark Late"
                         >
                           <Clock className="w-5 h-5 text-yellow-600" />
                         </button>
                         <button
-                          className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                          className="p-2 rounded-full hover:bg-gray-100 transition-all hover:scale-110"
                           title="Check"
                         >
                           <span className="text-gray-600 text-lg">✓</span>
                         </button>
                         <button
-                          className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                          className="p-2 rounded-full hover:bg-gray-100 transition-all hover:scale-110"
                           title="More options"
                         >
                           <span className="text-gray-600 text-lg">⋮</span>
@@ -397,7 +518,7 @@ export function Attendance() {
       </Card>
 
       {/* Attendance Summary & Performance */}
-      <Card>
+      <Card className="shadow-md">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Attendance Summary & Performance</h2>
           <div className="flex gap-2">
@@ -431,7 +552,7 @@ export function Attendance() {
                 const performance = summary ? getPerformanceLabel(summary.percentage) : getPerformanceLabel(0);
                 
                 return (
-                  <tr key={student.id} className="border-b border-gray-100 hover:bg-gray-50">
+                  <tr key={student.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                     <td className="py-3 px-4 text-sm text-gray-600">{index + 1}</td>
                     <td className="py-3 px-4 text-sm font-medium text-gray-900">{student.name}</td>
                     <td className="py-3 px-4 text-sm text-gray-600">{student.email}</td>
