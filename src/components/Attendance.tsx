@@ -51,6 +51,11 @@ export function Attendance() {
   const [sendingReminder, setSendingReminder] = useState(false);
   const [selectedManager, setSelectedManager] = useState('');
 
+  // Automation settings
+  const [autoEnabled, setAutoEnabled] = useState(false);
+  const [loadingSettings, setLoadingSettings] = useState(false);
+  const [triggeringAuto, setTriggeringAuto] = useState(false);
+
   // Summary counts
   const [presentCount, setPresentCount] = useState(0);
   const [absentCount, setAbsentCount] = useState(0);
@@ -62,6 +67,7 @@ export function Attendance() {
     loadManagers();
     loadAttendanceForDate(selectedDate);
     loadSummaries();
+    loadAutomationSettings();
   }, []);
 
   useEffect(() => {
@@ -118,6 +124,64 @@ export function Attendance() {
       }
     } catch (error) {
       console.error('Error loading summaries:', error);
+    }
+  };
+
+  const loadAutomationSettings = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/settings/attendance-automation`);
+      const data = await response.json();
+      if (data.success) {
+        setAutoEnabled(data.data.enabled);
+      }
+    } catch (error) {
+      console.error('Error loading automation settings:', error);
+    }
+  };
+
+  const toggleAutomation = async () => {
+    setLoadingSettings(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/settings/attendance-automation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: !autoEnabled })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        setAutoEnabled(!autoEnabled);
+        alert(`✅ ${result.message}`);
+      } else {
+        alert(`❌ Failed: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error toggling automation:', error);
+      alert('❌ Error updating settings');
+    } finally {
+      setLoadingSettings(false);
+    }
+  };
+
+  const triggerAutoNotifications = async () => {
+    setTriggeringAuto(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/attendance/trigger-auto-notifications`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        alert(`✅ ${result.message}`);
+      } else {
+        alert(`❌ Failed: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error triggering notifications:', error);
+      alert('❌ Error sending notifications');
+    } finally {
+      setTriggeringAuto(false);
     }
   };
 
@@ -307,6 +371,77 @@ export function Attendance() {
                 className="bg-purple-600 hover:bg-purple-700"
               >
                 {sendingReminder ? 'Sending...' : 'Send Reminder'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Automatic Attendance Monitoring */}
+      <Card className="mb-6 bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-200">
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
+            <Clock className="w-6 h-6 text-blue-600" />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-semibold text-gray-900">🤖 Automatic Attendance Monitoring</h3>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">Auto Mode:</span>
+                <button
+                  onClick={toggleAutomation}
+                  disabled={loadingSettings}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    autoEnabled ? 'bg-green-600' : 'bg-gray-300'
+                  } ${loadingSettings ? 'opacity-50' : ''}`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      autoEnabled ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+                <span className={`text-sm font-medium ${autoEnabled ? 'text-green-600' : 'text-gray-600'}`}>
+                  {autoEnabled ? 'ON' : 'OFF'}
+                </span>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              Automatically send daily attendance performance reports to students at 9:00 AM. 
+              Students with less than 80% attendance will receive reminder emails.
+            </p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div className="p-3 bg-white rounded-lg border border-blue-200">
+                <p className="text-xs text-gray-600 mb-1">Schedule</p>
+                <p className="text-sm font-semibold text-gray-900">⏰ Daily at 9:00 AM</p>
+              </div>
+              <div className="p-3 bg-white rounded-lg border border-blue-200">
+                <p className="text-xs text-gray-600 mb-1">Threshold</p>
+                <p className="text-sm font-semibold text-gray-900">📊 Below 80% attendance</p>
+              </div>
+              <div className="p-3 bg-white rounded-lg border border-blue-200">
+                <p className="text-xs text-gray-600 mb-1">Status</p>
+                <p className={`text-sm font-semibold ${autoEnabled ? 'text-green-600' : 'text-gray-600'}`}>
+                  {autoEnabled ? '✅ Active' : '⏸️ Paused'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                icon={Send}
+                onClick={triggerAutoNotifications}
+                disabled={triggeringAuto}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {triggeringAuto ? 'Sending...' : 'Send Now (Manual)'}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={loadAutomationSettings}
+              >
+                Refresh Status
               </Button>
             </div>
           </div>
@@ -522,10 +657,10 @@ export function Attendance() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Attendance Summary & Performance</h2>
           <div className="flex gap-2">
-            <Button variant="secondary" icon={Filter} size="sm">
+            <Button variant="secondary" icon={Filter}>
               Filter
             </Button>
-            <Button variant="secondary" icon={Download} size="sm">
+            <Button variant="secondary" icon={Download}>
               Export
             </Button>
           </div>

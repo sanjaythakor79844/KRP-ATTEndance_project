@@ -1806,3 +1806,78 @@ app.listen(PORT, async () => {
     }
   }, 3000); // Increased to 3 seconds
 });
+
+// Attendance Automation Settings API
+app.get('/api/settings/attendance-automation', (req, res) => {
+  try {
+    const settings = {
+      enabled: attendanceScheduler.isEnabled,
+      schedule: '9:00 AM daily',
+      threshold: 80, // Percentage below which students get reminders
+      lastRun: null, // TODO: Track last run time
+      nextRun: '9:00 AM tomorrow'
+    };
+    res.json({ success: true, data: settings });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/settings/attendance-automation', (req, res) => {
+  try {
+    const { enabled } = req.body;
+    
+    if (typeof enabled !== 'boolean') {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'enabled must be a boolean' 
+      });
+    }
+
+    attendanceScheduler.setEnabled(enabled);
+    
+    if (enabled && gmailService.isConnected()) {
+      // Restart scheduler if enabling
+      attendanceScheduler.stopAll();
+      attendanceScheduler.startDailyReminders();
+    } else if (!enabled) {
+      // Stop scheduler if disabling
+      attendanceScheduler.stopAll();
+    }
+
+    res.json({ 
+      success: true, 
+      message: `Automatic attendance reminders ${enabled ? 'enabled' : 'disabled'}`,
+      data: { enabled }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Manual trigger for attendance notifications
+app.post('/api/attendance/trigger-auto-notifications', async (req, res) => {
+  try {
+    if (!gmailService.isConnected()) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Gmail not connected. Please authenticate first.',
+        needsAuth: true
+      });
+    }
+
+    const result = await attendanceScheduler.triggerNow();
+    
+    if (result.success) {
+      res.json({ 
+        success: true, 
+        message: `Sent ${result.sent} notifications, skipped ${result.skipped} students`,
+        data: result
+      });
+    } else {
+      res.status(500).json({ success: false, error: result.error });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
