@@ -368,8 +368,8 @@ export function Attendance() {
       <div className="mb-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
           <div>
-            <h1 className="text-xl md:text-2xl font-bold text-gray-900">Attendance Monitoring</h1>
-            <p className="text-sm text-gray-600">Track daily attendance of students and mark their performance.</p>
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900">📊 Attendance Monitoring System</h1>
+            <p className="text-sm text-gray-600">Complete attendance tracking and monitoring dashboard</p>
           </div>
           <div className="flex flex-wrap gap-3">
             <Button
@@ -380,11 +380,12 @@ export function Attendance() {
                 loadManagers();
                 loadAttendanceForDate(selectedDate);
                 loadSummaries();
+                loadLast5DaysAttendance();
               }}
               disabled={loading}
               className="flex-1 md:flex-none"
             >
-              {loading ? 'Loading...' : 'Refresh'}
+              {loading ? 'Loading...' : 'Refresh All'}
             </Button>
             <Button
               icon={Send}
@@ -398,124 +399,13 @@ export function Attendance() {
         </div>
       </div>
 
-      {/* Send Reminder to Manager */}
-      <Card className="mb-6 bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-200">
-        <div className="flex flex-col md:flex-row md:items-start gap-4">
-          <div className="w-12 h-12 bg-purple-200 rounded-full flex items-center justify-center flex-shrink-0">
-            <Mail className="w-6 h-6 text-purple-600" />
-          </div>
-          <div className="flex-1">
-            <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-2">📧 Send Reminder to Attendance Manager</h3>
-            <p className="text-sm text-gray-600 mb-4">Send an email reminder to the attendance manager to mark today's attendance</p>
-            
-            <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-end">
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Select Attendance Manager</label>
-                <select
-                  value={selectedManager}
-                  onChange={(e) => setSelectedManager(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                >
-                  <option value="">-- Select Manager --</option>
-                  {managers.map(manager => (
-                    <option key={manager.id} value={manager.id}>
-                      {manager.name} — {manager.email}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <Button
-                icon={Send}
-                onClick={sendReminderToManager}
-                disabled={sendingReminder || !selectedManager}
-                className="bg-purple-600 hover:bg-purple-700 w-full md:w-auto"
-              >
-                {sendingReminder ? 'Sending...' : 'Send Reminder'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      {/* Automatic Attendance Monitoring */}
-      <Card className="mb-6 bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-200">
-        <div className="flex flex-col md:flex-row md:items-start gap-4">
-          <div className="w-12 h-12 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
-            <Clock className="w-6 h-6 text-blue-600" />
-          </div>
-          <div className="flex-1">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-2">
-              <h3 className="text-base md:text-lg font-semibold text-gray-900">🤖 Automatic Attendance Monitoring</h3>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">Auto Mode:</span>
-                <button
-                  onClick={toggleAutomation}
-                  disabled={loadingSettings}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    autoEnabled ? 'bg-green-600' : 'bg-gray-300'
-                  } ${loadingSettings ? 'opacity-50' : ''}`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      autoEnabled ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
-                <span className={`text-sm font-medium ${autoEnabled ? 'text-green-600' : 'text-gray-600'}`}>
-                  {autoEnabled ? 'ON' : 'OFF'}
-                </span>
-              </div>
-            </div>
-            <p className="text-sm text-gray-600 mb-4">
-              Automatically send daily attendance performance reports to students at 9:00 AM. 
-              Students with less than 80% attendance will receive reminder emails.
-            </p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <div className="p-3 bg-white rounded-lg border border-blue-200">
-                <p className="text-xs text-gray-600 mb-1">Schedule</p>
-                <p className="text-sm font-semibold text-gray-900">⏰ Daily at 9:00 AM</p>
-              </div>
-              <div className="p-3 bg-white rounded-lg border border-blue-200">
-                <p className="text-xs text-gray-600 mb-1">Threshold</p>
-                <p className="text-sm font-semibold text-gray-900">📊 Below 80% attendance</p>
-              </div>
-              <div className="p-3 bg-white rounded-lg border border-blue-200">
-                <p className="text-xs text-gray-600 mb-1">Status</p>
-                <p className={`text-sm font-semibold ${autoEnabled ? 'text-green-600' : 'text-gray-600'}`}>
-                  {autoEnabled ? '✅ Active' : '⏸️ Paused'}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-col md:flex-row gap-3">
-              <Button
-                icon={Send}
-                onClick={triggerAutoNotifications}
-                disabled={triggeringAuto}
-                className="bg-blue-600 hover:bg-blue-700 w-full md:w-auto"
-              >
-                {triggeringAuto ? 'Sending...' : 'Send Now (Manual)'}
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={loadAutomationSettings}
-                className="w-full md:w-auto"
-              >
-                Refresh Status
-              </Button>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      {/* Date Selector and Summary Cards */}
+      {/* Quick Stats Cards - Date Selector & Summary */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6">
         {/* Date Selector Card */}
         <Card className="lg:col-span-1 bg-white shadow-md hover:shadow-lg transition-shadow">
           <div className="flex items-center gap-3 mb-3">
             <Calendar className="w-5 h-5 text-blue-600" />
-            <span className="font-medium text-gray-900">Today</span>
+            <span className="font-medium text-gray-900">Select Date</span>
           </div>
           <input
             type="date"
@@ -899,6 +789,117 @@ export function Attendance() {
                   })}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Send Reminder to Manager */}
+      <Card className="mb-6 bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-200">
+        <div className="flex flex-col md:flex-row md:items-start gap-4">
+          <div className="w-12 h-12 bg-purple-200 rounded-full flex items-center justify-center flex-shrink-0">
+            <Mail className="w-6 h-6 text-purple-600" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-2">📧 Send Reminder to Attendance Manager</h3>
+            <p className="text-sm text-gray-600 mb-4">Send an email reminder to the attendance manager to mark today's attendance</p>
+            
+            <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-end">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Attendance Manager</label>
+                <select
+                  value={selectedManager}
+                  onChange={(e) => setSelectedManager(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="">-- Select Manager --</option>
+                  {managers.map(manager => (
+                    <option key={manager.id} value={manager.id}>
+                      {manager.name} — {manager.email}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Button
+                icon={Send}
+                onClick={sendReminderToManager}
+                disabled={sendingReminder || !selectedManager}
+                className="bg-purple-600 hover:bg-purple-700 w-full md:w-auto"
+              >
+                {sendingReminder ? 'Sending...' : 'Send Reminder'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Automatic Attendance Monitoring */}
+      <Card className="mb-6 bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-200">
+        <div className="flex flex-col md:flex-row md:items-start gap-4">
+          <div className="w-12 h-12 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
+            <Clock className="w-6 h-6 text-blue-600" />
+          </div>
+          <div className="flex-1">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-2">
+              <h3 className="text-base md:text-lg font-semibold text-gray-900">🤖 Automatic Attendance Monitoring</h3>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">Auto Mode:</span>
+                <button
+                  onClick={toggleAutomation}
+                  disabled={loadingSettings}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    autoEnabled ? 'bg-green-600' : 'bg-gray-300'
+                  } ${loadingSettings ? 'opacity-50' : ''}`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      autoEnabled ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+                <span className={`text-sm font-medium ${autoEnabled ? 'text-green-600' : 'text-gray-600'}`}>
+                  {autoEnabled ? 'ON' : 'OFF'}
+                </span>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              Automatically send daily attendance performance reports to students at 9:00 AM. 
+              Students with less than 80% attendance will receive reminder emails.
+            </p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div className="p-3 bg-white rounded-lg border border-blue-200">
+                <p className="text-xs text-gray-600 mb-1">Schedule</p>
+                <p className="text-sm font-semibold text-gray-900">⏰ Daily at 9:00 AM</p>
+              </div>
+              <div className="p-3 bg-white rounded-lg border border-blue-200">
+                <p className="text-xs text-gray-600 mb-1">Threshold</p>
+                <p className="text-sm font-semibold text-gray-900">📊 Below 80% attendance</p>
+              </div>
+              <div className="p-3 bg-white rounded-lg border border-blue-200">
+                <p className="text-xs text-gray-600 mb-1">Status</p>
+                <p className={`text-sm font-semibold ${autoEnabled ? 'text-green-600' : 'text-gray-600'}`}>
+                  {autoEnabled ? '✅ Active' : '⏸️ Paused'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col md:flex-row gap-3">
+              <Button
+                icon={Send}
+                onClick={triggerAutoNotifications}
+                disabled={triggeringAuto}
+                className="bg-blue-600 hover:bg-blue-700 w-full md:w-auto"
+              >
+                {triggeringAuto ? 'Sending...' : 'Send Now (Manual)'}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={loadAutomationSettings}
+                className="w-full md:w-auto"
+              >
+                Refresh Status
+              </Button>
             </div>
           </div>
         </div>
