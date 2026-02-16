@@ -51,6 +51,10 @@ export function Attendance() {
   const [sendingReminder, setSendingReminder] = useState(false);
   const [selectedManager, setSelectedManager] = useState('');
 
+  // Daily attendance view state
+  const [dailyAttendance, setDailyAttendance] = useState<Map<string, Map<string, 'present' | 'absent' | 'late'>>>(new Map());
+  const [last5Days, setLast5Days] = useState<string[]>([]);
+
   // Automation settings
   const [autoEnabled, setAutoEnabled] = useState(false);
   const [loadingSettings, setLoadingSettings] = useState(false);
@@ -68,11 +72,54 @@ export function Attendance() {
     loadAttendanceForDate(selectedDate);
     loadSummaries();
     loadAutomationSettings();
+    loadLast5DaysAttendance();
   }, []);
 
   useEffect(() => {
     loadAttendanceForDate(selectedDate);
   }, [selectedDate]);
+
+  // Generate last 5 days dates
+  const generateLast5Days = () => {
+    const days = [];
+    for (let i = 4; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      days.push(date.toISOString().split('T')[0]);
+    }
+    return days;
+  };
+
+  // Load attendance for last 5 days
+  const loadLast5DaysAttendance = async () => {
+    try {
+      const days = generateLast5Days();
+      setLast5Days(days);
+      
+      const allAttendance = await fetch(`${API_BASE_URL}/api/attendance`);
+      const data = await allAttendance.json();
+      
+      if (data.success) {
+        const attendanceMap = new Map<string, Map<string, 'present' | 'absent' | 'late'>>();
+        
+        // Organize attendance by student and date
+        data.data.forEach((record: any) => {
+          const recordDate = new Date(record.timestamp).toISOString().split('T')[0];
+          
+          if (days.includes(recordDate)) {
+            if (!attendanceMap.has(record.studentId)) {
+              attendanceMap.set(record.studentId, new Map());
+            }
+            attendanceMap.get(record.studentId)?.set(recordDate, record.status);
+          }
+        });
+        
+        setDailyAttendance(attendanceMap);
+      }
+    } catch (error) {
+      console.error('Error loading daily attendance:', error);
+    }
+  };
 
   const loadStudents = async () => {
     try {
@@ -220,6 +267,7 @@ export function Attendance() {
       if (result.success) {
         await loadAttendanceForDate(selectedDate);
         await loadSummaries();
+        await loadLast5DaysAttendance(); // Reload daily view
       } else {
         alert(`Failed: ${result.error}`);
       }
@@ -529,6 +577,121 @@ export function Attendance() {
           </div>
         </Card>
       </div>
+
+      {/* Today's Attendance - Daily View Table */}
+      <Card className="mb-6 shadow-md">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+          <div>
+            <h2 className="text-base md:text-lg font-semibold text-gray-900">📅 Today's Attendance</h2>
+            <p className="text-sm text-gray-600">View daily attendance for the last 5 days</p>
+          </div>
+          <Button
+            icon={RefreshCw}
+            variant="secondary"
+            onClick={loadLast5DaysAttendance}
+            className="w-full md:w-auto"
+          >
+            Refresh
+          </Button>
+        </div>
+
+        <div className="overflow-x-auto -mx-4 md:mx-0">
+          <div className="inline-block min-w-full align-middle">
+            <div className="overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr className="border-b-2 border-gray-300 bg-gray-50">
+                    <th className="text-left py-3 px-3 md:px-4 text-xs md:text-sm font-semibold text-gray-700 sticky left-0 bg-gray-50 z-10">
+                      Name / Date
+                    </th>
+                    {last5Days.map((date) => (
+                      <th key={date} className="text-center py-3 px-3 md:px-4 text-xs md:text-sm font-semibold text-gray-700 min-w-[80px]">
+                        {new Date(date).toLocaleDateString('en-US', { day: '2-digit', month: 'short' })}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filteredStudents.slice(0, 5).map((student) => (
+                    <tr key={student.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="py-3 px-3 md:px-4 text-xs md:text-sm font-medium text-gray-900 sticky left-0 bg-white z-10">
+                        {student.name}
+                      </td>
+                      {last5Days.map((date) => {
+                        const status = dailyAttendance.get(student.id)?.get(date);
+                        return (
+                          <td key={date} className="py-3 px-3 md:px-4 text-center">
+                            {status === 'present' && (
+                              <div className="flex items-center justify-center">
+                                <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-green-600" />
+                              </div>
+                            )}
+                            {status === 'absent' && (
+                              <div className="flex items-center justify-center">
+                                <XCircle className="w-5 h-5 md:w-6 md:h-6 text-red-600" />
+                              </div>
+                            )}
+                            {status === 'late' && (
+                              <div className="flex items-center justify-center">
+                                <Clock className="w-5 h-5 md:w-6 md:h-6 text-yellow-600" />
+                              </div>
+                            )}
+                            {!status && (
+                              <div className="flex items-center justify-center">
+                                <span className="text-gray-300 text-lg">—</span>
+                              </div>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-gray-600">
+          <div className="flex items-center gap-4">
+            <span className="text-xs md:text-sm">Showing 1 to 5 of {filteredStudents.length} entries</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button className="px-3 py-1 text-xs md:text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50" disabled>
+              Previous
+            </button>
+            <button className="px-3 py-1 text-xs md:text-sm bg-blue-600 text-white rounded">
+              1
+            </button>
+            <button className="px-3 py-1 text-xs md:text-sm border border-gray-300 rounded hover:bg-gray-50">
+              Next
+            </button>
+          </div>
+        </div>
+
+        {/* Legend */}
+        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex flex-wrap items-center gap-4 text-xs md:text-sm">
+            <span className="font-medium text-gray-700">Legend:</span>
+            <div className="flex items-center gap-1">
+              <CheckCircle className="w-4 h-4 text-green-600" />
+              <span className="text-gray-600">Present</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <XCircle className="w-4 h-4 text-red-600" />
+              <span className="text-gray-600">Absent</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Clock className="w-4 h-4 text-yellow-600" />
+              <span className="text-gray-600">Late</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-gray-300 text-lg">—</span>
+              <span className="text-gray-600">Not Marked</span>
+            </div>
+          </div>
+        </div>
+      </Card>
 
       {/* Mark Today's Attendance Section */}
       <Card className="mb-6 shadow-md">
