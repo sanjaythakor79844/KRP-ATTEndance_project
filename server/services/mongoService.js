@@ -498,6 +498,47 @@ class MongoService {
         }
     }
 
+    async deleteAttendanceRecord(id) {
+        try {
+            if (this.isConnected && this.db) {
+                const result = await this.db.collection('attendance').deleteOne({ id });
+                
+                if (result.deletedCount === 0) {
+                    return {
+                        success: false,
+                        error: 'Attendance record not found'
+                    };
+                }
+                
+                return {
+                    success: true,
+                    message: 'Attendance record deleted successfully'
+                };
+            }
+            
+            // Fallback
+            const index = this.fallbackData.attendance.findIndex(a => a.id === id);
+            if (index !== -1) {
+                this.fallbackData.attendance.splice(index, 1);
+                return {
+                    success: true,
+                    message: 'Attendance record deleted successfully'
+                };
+            }
+            
+            return {
+                success: false,
+                error: 'Attendance record not found'
+            };
+        } catch (error) {
+            console.error('❌ Error deleting attendance record:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
     // Logs operations
     async getLogs(limit = 100) {
         try {

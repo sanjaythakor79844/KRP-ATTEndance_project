@@ -50,7 +50,7 @@ class AttendanceSchedulerService {
       let skipped = 0;
 
       for (const student of activeStudents) {
-        const summary = attendanceTrackingService.calculateAttendance(student.id);
+        const summary = await attendanceTrackingService.calculateAttendance(student.id);
 
         // Send notification if student has attendance records
         if (summary.totalDays > 0) {

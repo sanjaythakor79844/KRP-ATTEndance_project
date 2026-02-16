@@ -1,41 +1,70 @@
 import gmailService from './gmailService.js';
 import emailTemplates from '../templates/emailTemplates.js';
+import mongoService from './mongoService.js';
 
 class AttendanceTrackingService {
   constructor() {
-    this.attendanceRecords = [];
+    // No in-memory storage - use MongoDB directly
   }
 
   // Mark attendance for a student
   async markAttendance(studentId, studentName, studentEmail, date, status, className) {
-    const record = {
-      id: Date.now().toString(),
-      studentId,
-      studentName,
-      date,
-      status, // 'present', 'absent', 'late'
-      className,
-      timestamp: new Date().toISOString()
-    };
-    
-    this.attendanceRecords.push(record);
-    console.log(`✅ Attendance marked: ${studentName} - ${status}`);
-    
-    // Send notification email to student
-    if (studentEmail && gmailService.isConnected()) {
-      try {
-        await this.sendAttendanceConfirmation(studentName, studentEmail, date, status);
-      } catch (error) {
-        console.error(`⚠️ Failed to send attendance confirmation to ${studentName}:`, error);
-        // Don't fail the attendance marking if email fails
+    try {
+      // Check if attendance already exists for this student on this date
+      const existingRecords = await mongoService.getAttendance();
+      const existingRecord = existingRecords.find(r => 
+        r.studentId === studentId && 
+        new Date(r.timestamp).toISOString().split('T')[0] === date
+      );
+
+      if (existingRecord) {
+        // Update existing record
+        console.log(`🔄 Updating attendance for ${studentName} on ${date}`);
+        // Delete old record and create new one (simpler than update)
+        await mongoService.deleteAttendanceRecord(existingRecord.id);
       }
+
+      const record = {
+        studentId,
+        studentName,
+        studentEmail,
+        date,
+        status, // 'present', 'absent', 'late'
+        className,
+        timestamp: new Date().toISOString()
+      };
+      
+      // Save to MongoDB
+      const result = await mongoService.addAttendance(record);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to save attendance');
+      }
+
+      console.log(`✅ Attendance marked: ${studentName} - ${status}`);
+      
+      // Send notification email to student (optional, don't fail if it doesn't work)
+      if (studentEmail && gmailService.isConnected()) {
+        try {
+          await this.sendAttendanceConfirmation(studentName, studentEmail, date, status);
+        } catch (error) {
+          console.error(`⚠️ Failed to send attendance confirmation to ${studentName}:`, error);
+          // Don't fail the attendance marking if email fails
+        }
+      }
+      
+      return {
+        success: true,
+        message: `Attendance marked as ${status}`,
+        data: result.data
+      };
+    } catch (error) {
+      console.error(`❌ Error marking attendance:`, error);
+      return {
+        success: false,
+        error: error.message
+      };
     }
-    
-    return {
-      success: true,
-      message: `Attendance marked as ${status}`,
-      data: record
-    };
   }
 
   // Send attendance confirmation email to student
@@ -78,34 +107,49 @@ class AttendanceTrackingService {
   }
 
   // Calculate attendance percentage for a student
-  calculateAttendance(studentId, startDate = null, endDate = null) {
-    let records = this.attendanceRecords.filter(r => r.studentId === studentId);
-    
-    // Filter by date range if provided
-    if (startDate) {
-      records = records.filter(r => new Date(r.date) >= new Date(startDate));
-    }
-    if (endDate) {
-      records = records.filter(r => new Date(r.date) <= new Date(endDate));
-    }
+  async calculateAttendance(studentId, startDate = null, endDate = null) {
+    try {
+      // Get all attendance records from MongoDB
+      const allRecords = await mongoService.getAttendance();
+      let records = allRecords.filter(r => r.studentId === studentId);
+      
+      // Filter by date range if provided
+      if (startDate) {
+        records = records.filter(r => new Date(r.date || r.timestamp) >= new Date(startDate));
+      }
+      if (endDate) {
+        records = records.filter(r => new Date(r.date || r.timestamp) <= new Date(endDate));
+      }
 
-    const totalDays = records.length;
-    const presentDays = records.filter(r => r.status === 'present').length;
-    const absentDays = records.filter(r => r.status === 'absent').length;
-    const lateDays = records.filter(r => r.status === 'late').length;
-    
-    // Calculate percentage: (present + late) / total * 100
-    const percentage = totalDays > 0 ? Math.round(((presentDays + lateDays) / totalDays) * 100) : 0;
-    
-    return {
-      studentId,
-      totalDays,
-      presentDays,
-      absentDays,
-      lateDays,
-      percentage,
-      status: this.getAttendanceStatus(percentage)
-    };
+      const totalDays = records.length;
+      const presentDays = records.filter(r => r.status === 'present').length;
+      const absentDays = records.filter(r => r.status === 'absent').length;
+      const lateDays = records.filter(r => r.status === 'late').length;
+      
+      // Calculate percentage: (present + late) / total * 100
+      const percentage = totalDays > 0 ? Math.round(((presentDays + lateDays) / totalDays) * 100) : 0;
+      
+      return {
+        studentId,
+        totalDays,
+        presentDays,
+        absentDays,
+        lateDays,
+        percentage,
+        status: this.getAttendanceStatus(percentage)
+      };
+    } catch (error) {
+      console.error(`❌ Error calculating attendance for ${studentId}:`, error);
+      return {
+        studentId,
+        totalDays: 0,
+        presentDays: 0,
+        absentDays: 0,
+        lateDays: 0,
+        percentage: 0,
+        status: 'unknown'
+      };
+    }
   }
 
   // Get attendance status based on percentage
@@ -117,14 +161,16 @@ class AttendanceTrackingService {
   }
 
   // Get all students attendance summary
-  getAllStudentsAttendance(students) {
-    return students.map(student => {
-      const summary = this.calculateAttendance(student.id);
-      return {
+  async getAllStudentsAttendance(students) {
+    const summaries = [];
+    for (const student of students) {
+      const summary = await this.calculateAttendance(student.id);
+      summaries.push({
         ...student,
         attendance: summary
-      };
-    });
+      });
+    }
+    return summaries;
   }
 
   // Send attendance notification email
@@ -193,7 +239,7 @@ class AttendanceTrackingService {
         continue;
       }
 
-      const summary = this.calculateAttendance(student.id);
+      const summary = await this.calculateAttendance(student.id);
       
       // Only send if student has attendance records
       if (summary.totalDays > 0) {
@@ -213,41 +259,65 @@ class AttendanceTrackingService {
   }
 
   // Get attendance records for a date range
-  getRecords(startDate = null, endDate = null) {
-    let records = [...this.attendanceRecords];
-    
-    if (startDate) {
-      records = records.filter(r => new Date(r.date) >= new Date(startDate));
-    }
-    if (endDate) {
-      records = records.filter(r => new Date(r.date) <= new Date(endDate));
-    }
+  async getRecords(startDate = null, endDate = null) {
+    try {
+      const allRecords = await mongoService.getAttendance();
+      let records = [...allRecords];
+      
+      if (startDate) {
+        records = records.filter(r => new Date(r.date || r.timestamp) >= new Date(startDate));
+      }
+      if (endDate) {
+        records = records.filter(r => new Date(r.date || r.timestamp) <= new Date(endDate));
+      }
 
-    return records;
+      return records;
+    } catch (error) {
+      console.error('❌ Error getting records:', error);
+      return [];
+    }
   }
 
   // Get today's attendance summary
-  getTodaysSummary(students) {
-    const today = new Date().toISOString().split('T')[0];
-    const todaysRecords = this.attendanceRecords.filter(r => r.date === today);
-    
-    const total = students.filter(s => s.status === 'active').length;
-    const marked = new Set(todaysRecords.map(r => r.studentId)).size;
-    const present = todaysRecords.filter(r => r.status === 'present').length;
-    const absent = todaysRecords.filter(r => r.status === 'absent').length;
-    const late = todaysRecords.filter(r => r.status === 'late').length;
-    const notMarked = total - marked;
+  async getTodaysSummary(students) {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const allRecords = await mongoService.getAttendance();
+      const todaysRecords = allRecords.filter(r => {
+        const recordDate = new Date(r.date || r.timestamp).toISOString().split('T')[0];
+        return recordDate === today;
+      });
+      
+      const total = students.filter(s => s.status === 'active').length;
+      const marked = new Set(todaysRecords.map(r => r.studentId)).size;
+      const present = todaysRecords.filter(r => r.status === 'present').length;
+      const absent = todaysRecords.filter(r => r.status === 'absent').length;
+      const late = todaysRecords.filter(r => r.status === 'late').length;
+      const notMarked = total - marked;
 
-    return {
-      date: today,
-      total,
-      marked,
-      notMarked,
-      present,
-      absent,
-      late,
-      percentage: total > 0 ? Math.round((present / total) * 100) : 0
-    };
+      return {
+        date: today,
+        total,
+        marked,
+        notMarked,
+        present,
+        absent,
+        late,
+        percentage: total > 0 ? Math.round((present / total) * 100) : 0
+      };
+    } catch (error) {
+      console.error('❌ Error getting today\'s summary:', error);
+      return {
+        date: new Date().toISOString().split('T')[0],
+        total: 0,
+        marked: 0,
+        notMarked: 0,
+        present: 0,
+        absent: 0,
+        late: 0,
+        percentage: 0
+      };
+    }
   }
 }
 

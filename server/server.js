@@ -1119,10 +1119,10 @@ app.post('/api/attendance/check-and-notify', async (req, res) => {
     
     for (const student of activeStudents) {
       // Calculate attendance summary for this student
-      const summary = attendanceTrackingService.calculateAttendance(student.id);
+      const summary = await attendanceTrackingService.calculateAttendance(student.id);
       
       // Only send if student has attendance records
-      if (summary.total > 0) {
+      if (summary.totalDays > 0) {
         const result = await attendanceTrackingService.sendAttendanceNotification(student, summary);
         
         if (result.success) {
