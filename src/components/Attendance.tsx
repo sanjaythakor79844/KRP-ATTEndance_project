@@ -579,11 +579,13 @@ export function Attendance() {
       </div>
 
       {/* Today's Attendance - Daily View Table */}
-      <Card className="mb-6 shadow-md">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+      <Card className="mb-6 shadow-md bg-white">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
           <div>
-            <h2 className="text-base md:text-lg font-semibold text-gray-900">📅 Today's Attendance</h2>
-            <p className="text-sm text-gray-600">View daily attendance for the last 5 days</p>
+            <h2 className="text-lg md:text-xl font-bold text-gray-900 flex items-center gap-2">
+              📅 Today's Attendance
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">View daily attendance for the last 5 days</p>
           </div>
           <Button
             icon={RefreshCw}
@@ -595,99 +597,118 @@ export function Attendance() {
           </Button>
         </div>
 
-        <div className="overflow-x-auto -mx-4 md:mx-0">
-          <div className="inline-block min-w-full align-middle">
-            <div className="overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead>
-                  <tr className="border-b-2 border-gray-300 bg-gray-50">
-                    <th className="text-left py-3 px-3 md:px-4 text-xs md:text-sm font-semibold text-gray-700 sticky left-0 bg-gray-50 z-10">
-                      Name / Date
+        {/* Table Container with better styling */}
+        <div className="border border-gray-200 rounded-lg overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 border-r border-gray-200">
+                    Name / Date
+                  </th>
+                  {last5Days.map((date) => (
+                    <th key={date} className="px-6 py-4 text-center text-sm font-semibold text-gray-700 min-w-[100px]">
+                      {new Date(date).toLocaleDateString('en-US', { day: '2-digit', month: 'short' })}
                     </th>
-                    {last5Days.map((date) => (
-                      <th key={date} className="text-center py-3 px-3 md:px-4 text-xs md:text-sm font-semibold text-gray-700 min-w-[80px]">
-                        {new Date(date).toLocaleDateString('en-US', { day: '2-digit', month: 'short' })}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {filteredStudents.slice(0, 5).map((student) => (
-                    <tr key={student.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="py-3 px-3 md:px-4 text-xs md:text-sm font-medium text-gray-900 sticky left-0 bg-white z-10">
-                        {student.name}
-                      </td>
-                      {last5Days.map((date) => {
-                        const status = dailyAttendance.get(student.id)?.get(date);
-                        return (
-                          <td key={date} className="py-3 px-3 md:px-4 text-center">
-                            {status === 'present' && (
-                              <div className="flex items-center justify-center">
-                                <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-green-600" />
-                              </div>
-                            )}
-                            {status === 'absent' && (
-                              <div className="flex items-center justify-center">
-                                <XCircle className="w-5 h-5 md:w-6 md:h-6 text-red-600" />
-                              </div>
-                            )}
-                            {status === 'late' && (
-                              <div className="flex items-center justify-center">
-                                <Clock className="w-5 h-5 md:w-6 md:h-6 text-yellow-600" />
-                              </div>
-                            )}
-                            {!status && (
-                              <div className="flex items-center justify-center">
-                                <span className="text-gray-300 text-lg">—</span>
-                              </div>
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
                   ))}
-                </tbody>
-              </table>
-            </div>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredStudents.slice(0, 5).map((student, index) => (
+                  <tr key={student.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900 border-r border-gray-200 whitespace-nowrap">
+                      {student.name}
+                    </td>
+                    {last5Days.map((date) => {
+                      const status = dailyAttendance.get(student.id)?.get(date);
+                      return (
+                        <td key={date} className="px-6 py-4 text-center">
+                          {status === 'present' && (
+                            <div className="flex items-center justify-center">
+                              <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                                <CheckCircle className="w-5 h-5 text-green-600" />
+                              </div>
+                            </div>
+                          )}
+                          {status === 'absent' && (
+                            <div className="flex items-center justify-center">
+                              <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+                                <XCircle className="w-5 h-5 text-red-600" />
+                              </div>
+                            </div>
+                          )}
+                          {status === 'late' && (
+                            <div className="flex items-center justify-center">
+                              <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center">
+                                <Clock className="w-5 h-5 text-yellow-600" />
+                              </div>
+                            </div>
+                          )}
+                          {!status && (
+                            <div className="flex items-center justify-center">
+                              <span className="text-gray-300 text-xl font-light">—</span>
+                            </div>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
 
-        <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-gray-600">
-          <div className="flex items-center gap-4">
-            <span className="text-xs md:text-sm">Showing 1 to 5 of {filteredStudents.length} entries</span>
+        {/* Footer with pagination and legend */}
+        <div className="mt-6 flex flex-col md:flex-row items-center justify-between gap-4">
+          {/* Showing entries */}
+          <div className="text-sm text-gray-600">
+            Showing <span className="font-medium">1</span> to <span className="font-medium">5</span> of{' '}
+            <span className="font-medium">{filteredStudents.length}</span> entries
           </div>
+
+          {/* Pagination */}
           <div className="flex items-center gap-2">
-            <button className="px-3 py-1 text-xs md:text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50" disabled>
+            <button 
+              className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" 
+              disabled
+            >
               Previous
             </button>
-            <button className="px-3 py-1 text-xs md:text-sm bg-blue-600 text-white rounded">
+            <button className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg font-medium">
               1
             </button>
-            <button className="px-3 py-1 text-xs md:text-sm border border-gray-300 rounded hover:bg-gray-50">
+            <button className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
               Next
             </button>
           </div>
         </div>
 
         {/* Legend */}
-        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="flex flex-wrap items-center gap-4 text-xs md:text-sm">
-            <span className="font-medium text-gray-700">Legend:</span>
-            <div className="flex items-center gap-1">
-              <CheckCircle className="w-4 h-4 text-green-600" />
-              <span className="text-gray-600">Present</span>
+        <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
+          <div className="flex flex-wrap items-center gap-6">
+            <span className="text-sm font-semibold text-gray-700">Legend:</span>
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
+                <CheckCircle className="w-4 h-4 text-green-600" />
+              </div>
+              <span className="text-sm text-gray-700">Present</span>
             </div>
-            <div className="flex items-center gap-1">
-              <XCircle className="w-4 h-4 text-red-600" />
-              <span className="text-gray-600">Absent</span>
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center">
+                <XCircle className="w-4 h-4 text-red-600" />
+              </div>
+              <span className="text-sm text-gray-700">Absent</span>
             </div>
-            <div className="flex items-center gap-1">
-              <Clock className="w-4 h-4 text-yellow-600" />
-              <span className="text-gray-600">Late</span>
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-full bg-yellow-100 flex items-center justify-center">
+                <Clock className="w-4 h-4 text-yellow-600" />
+              </div>
+              <span className="text-sm text-gray-700">Late</span>
             </div>
-            <div className="flex items-center gap-1">
-              <span className="text-gray-300 text-lg">—</span>
-              <span className="text-gray-600">Not Marked</span>
+            <div className="flex items-center gap-2">
+              <span className="text-gray-300 text-xl font-light">—</span>
+              <span className="text-sm text-gray-700">Not Marked</span>
             </div>
           </div>
         </div>
