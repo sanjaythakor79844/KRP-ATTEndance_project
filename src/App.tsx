@@ -21,14 +21,14 @@ export default function App() {
     const authTime = localStorage.getItem('krp_auth_time');
     
     if (authStatus === 'true' && authTime) {
-      // Check if auth is still valid (24 hours)
+      // Check if auth is still valid (30 days for testing)
       const timeDiff = Date.now() - parseInt(authTime);
-      const hoursElapsed = timeDiff / (1000 * 60 * 60);
+      const daysElapsed = timeDiff / (1000 * 60 * 60 * 24);
       
-      if (hoursElapsed < 24) {
+      if (daysElapsed < 30) {
         setIsAuthenticated(true);
       } else {
-        // Auth expired, clear it
+        // Auth expired after 30 days, clear it
         localStorage.removeItem('krp_auth');
         localStorage.removeItem('krp_auth_time');
       }
