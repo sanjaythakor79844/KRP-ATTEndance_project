@@ -252,6 +252,7 @@ export function Attendance() {
   const markAttendance = async (studentId: string, status: 'present' | 'absent' | 'late') => {
     setMarking(studentId);
     try {
+      const student = students.find(s => s.id === studentId);
       const response = await fetch(`${API_BASE_URL}/api/attendance/mark`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -265,15 +266,21 @@ export function Attendance() {
 
       const result = await response.json();
       if (result.success) {
-        await loadAttendanceForDate(selectedDate);
-        await loadSummaries();
-        await loadLast5DaysAttendance(); // Reload daily view
+        // Show success message
+        console.log(`✅ ${student?.name} marked as ${status}`);
+        
+        // Reload all data to reflect changes
+        await Promise.all([
+          loadAttendanceForDate(selectedDate),
+          loadSummaries(),
+          loadLast5DaysAttendance()
+        ]);
       } else {
-        alert(`Failed: ${result.error}`);
+        alert(`❌ Failed: ${result.error}`);
       }
     } catch (error) {
       console.error('Error marking attendance:', error);
-      alert('Failed to mark attendance');
+      alert('❌ Failed to mark attendance. Please try again.');
     } finally {
       setMarking(null);
     }
@@ -473,17 +480,18 @@ export function Attendance() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
           <div>
             <h2 className="text-lg md:text-xl font-bold text-gray-900 flex items-center gap-2">
-              📅 Today's Attendance
+              📅 Last 5 Days Attendance Overview
             </h2>
-            <p className="text-sm text-gray-500 mt-1">View daily attendance for the last 5 days</p>
+            <p className="text-sm text-gray-500 mt-1">Quick view of attendance patterns for the last 5 days</p>
           </div>
           <Button
             icon={RefreshCw}
             variant="secondary"
             onClick={loadLast5DaysAttendance}
             className="w-full md:w-auto"
+            disabled={loading}
           >
-            Refresh
+            {loading ? 'Loading...' : 'Refresh'}
           </Button>
         </div>
 
@@ -491,92 +499,93 @@ export function Attendance() {
         <div className="border border-gray-200 rounded-lg overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className="bg-gradient-to-r from-blue-50 to-indigo-50">
                 <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 border-r border-gray-200">
-                    Name / Date
+                  <th className="px-4 md:px-6 py-4 text-left text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200 sticky left-0 bg-blue-50 z-10">
+                    Student Name
                   </th>
-                  {last5Days.map((date) => (
-                    <th key={date} className="px-6 py-4 text-center text-sm font-semibold text-gray-700 min-w-[100px]">
-                      {new Date(date).toLocaleDateString('en-US', { day: '2-digit', month: 'short' })}
-                    </th>
-                  ))}
+                  {last5Days.map((date) => {
+                    const isToday = date === new Date().toISOString().split('T')[0];
+                    return (
+                      <th key={date} className={`px-4 md:px-6 py-4 text-center text-xs md:text-sm font-semibold min-w-[100px] ${
+                        isToday ? 'bg-blue-100 text-blue-900' : 'text-gray-700'
+                      }`}>
+                        <div className="flex flex-col items-center gap-1">
+                          <span>{new Date(date).toLocaleDateString('en-US', { day: '2-digit', month: 'short' })}</span>
+                          {isToday && <span className="text-xs font-normal text-blue-600">Today</span>}
+                        </div>
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredStudents.slice(0, 5).map((student, index) => (
-                  <tr key={student.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900 border-r border-gray-200 whitespace-nowrap">
-                      {student.name}
+                {filteredStudents.length === 0 ? (
+                  <tr>
+                    <td colSpan={last5Days.length + 1} className="px-6 py-8 text-center text-gray-500">
+                      No students found
                     </td>
-                    {last5Days.map((date) => {
-                      const status = dailyAttendance.get(student.id)?.get(date);
-                      return (
-                        <td key={date} className="px-6 py-4 text-center">
-                          {status === 'present' && (
-                            <div className="flex items-center justify-center">
-                              <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-                                <CheckCircle className="w-5 h-5 text-green-600" />
-                              </div>
-                            </div>
-                          )}
-                          {status === 'absent' && (
-                            <div className="flex items-center justify-center">
-                              <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
-                                <XCircle className="w-5 h-5 text-red-600" />
-                              </div>
-                            </div>
-                          )}
-                          {status === 'late' && (
-                            <div className="flex items-center justify-center">
-                              <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center">
-                                <Clock className="w-5 h-5 text-yellow-600" />
-                              </div>
-                            </div>
-                          )}
-                          {!status && (
-                            <div className="flex items-center justify-center">
-                              <span className="text-gray-300 text-xl font-light">—</span>
-                            </div>
-                          )}
-                        </td>
-                      );
-                    })}
                   </tr>
-                ))}
+                ) : (
+                  filteredStudents.map((student, index) => (
+                    <tr key={student.id} className={`hover:bg-gray-50 transition-colors ${
+                      index % 2 === 0 ? 'bg-white' : 'bg-gray-25'
+                    }`}>
+                      <td className="px-4 md:px-6 py-4 text-xs md:text-sm font-medium text-gray-900 border-r border-gray-200 whitespace-nowrap sticky left-0 bg-inherit z-10">
+                        <div className="flex items-center gap-2">
+                          <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold">
+                            {index + 1}
+                          </span>
+                          <span className="truncate max-w-[150px]">{student.name}</span>
+                        </div>
+                      </td>
+                      {last5Days.map((date) => {
+                        const status = dailyAttendance.get(student.id)?.get(date);
+                        const isToday = date === new Date().toISOString().split('T')[0];
+                        return (
+                          <td key={date} className={`px-4 md:px-6 py-4 text-center ${
+                            isToday ? 'bg-blue-50' : ''
+                          }`}>
+                            {status === 'present' && (
+                              <div className="flex items-center justify-center">
+                                <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center hover:scale-110 transition-transform">
+                                  <CheckCircle className="w-5 h-5 text-green-600" />
+                                </div>
+                              </div>
+                            )}
+                            {status === 'absent' && (
+                              <div className="flex items-center justify-center">
+                                <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center hover:scale-110 transition-transform">
+                                  <XCircle className="w-5 h-5 text-red-600" />
+                                </div>
+                              </div>
+                            )}
+                            {status === 'late' && (
+                              <div className="flex items-center justify-center">
+                                <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center hover:scale-110 transition-transform">
+                                  <Clock className="w-5 h-5 text-yellow-600" />
+                                </div>
+                              </div>
+                            )}
+                            {!status && (
+                              <div className="flex items-center justify-center">
+                                <span className="text-gray-300 text-xl font-light">—</span>
+                              </div>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
         </div>
 
-        {/* Footer with pagination and legend */}
-        <div className="mt-6 flex flex-col md:flex-row items-center justify-between gap-4">
-          {/* Showing entries */}
-          <div className="text-sm text-gray-600">
-            Showing <span className="font-medium">1</span> to <span className="font-medium">5</span> of{' '}
-            <span className="font-medium">{filteredStudents.length}</span> entries
-          </div>
-
-          {/* Pagination */}
-          <div className="flex items-center gap-2">
-            <button 
-              className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" 
-              disabled
-            >
-              Previous
-            </button>
-            <button className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg font-medium">
-              1
-            </button>
-            <button className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-              Next
-            </button>
-          </div>
-        </div>
-
-        {/* Legend */}
+        {/* Footer with legend */}
         <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
-          <div className="flex flex-wrap items-center gap-6">
+          <div className="flex flex-wrap items-center gap-4 md:gap-6">
             <span className="text-sm font-semibold text-gray-700">Legend:</span>
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
@@ -607,7 +616,12 @@ export function Attendance() {
       {/* Mark Today's Attendance Section */}
       <Card className="mb-6 shadow-md">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-          <h2 className="text-base md:text-lg font-semibold text-gray-900">Mark Today's Attendance</h2>
+          <div>
+            <h2 className="text-base md:text-lg font-semibold text-gray-900 flex items-center gap-2">
+              ✏️ Mark Attendance for {formatDate(selectedDate)}
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">Click the buttons below to mark student attendance</p>
+          </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             {/* Class Filter */}
             <select
