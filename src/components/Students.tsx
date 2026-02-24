@@ -28,6 +28,8 @@ export function Students() {
   const [searchTerm, setSearchTerm] = useState('');
   const [importing, setImporting] = useState(false);
   const [importResults, setImportResults] = useState<{success: number; failed: number; errors: string[]} | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewData, setPreviewData] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch students from server
@@ -140,8 +142,8 @@ export function Students() {
     }
   };
 
-  // Handle CSV/Excel file import
-  const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle file selection (preview only, don't import yet)
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -152,6 +154,47 @@ export function Students() {
       return;
     }
 
+    setSelectedFile(file);
+    setImportResults(null);
+
+    // Preview the file data
+    if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        try {
+          const data = e.target?.result;
+          const workbook = XLSX.read(data, { type: 'binary' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet);
+          setPreviewData(jsonData.slice(0, 5)); // Show first 5 rows
+        } catch (error) {
+          alert(`❌ Error reading Excel file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      };
+      
+      reader.readAsBinaryString(file);
+    } else {
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        preview: 5, // Only preview first 5 rows
+        complete: (results) => {
+          setPreviewData(results.data);
+        },
+        error: (error) => {
+          alert(`❌ Error parsing CSV file: ${error.message}`);
+        }
+      });
+    }
+  };
+
+  // Handle actual import when user clicks Import button
+  const handleConfirmImport = async () => {
+    if (!selectedFile) return;
+
+    const fileExtension = selectedFile.name.split('.').pop()?.toLowerCase();
     setImporting(true);
     setImportResults(null);
 
@@ -163,14 +206,9 @@ export function Students() {
         try {
           const data = e.target?.result;
           const workbook = XLSX.read(data, { type: 'binary' });
-          
-          // Get first sheet
           const sheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[sheetName];
-          
-          // Convert to JSON
           const jsonData = XLSX.utils.sheet_to_json(worksheet);
-          
           await processImportData(jsonData);
         } catch (error) {
           alert(`❌ Error reading Excel file: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -183,11 +221,11 @@ export function Students() {
         setImporting(false);
       };
       
-      reader.readAsBinaryString(file);
+      reader.readAsBinaryString(selectedFile);
     } 
     // Handle CSV files
     else {
-      Papa.parse(file, {
+      Papa.parse(selectedFile, {
         header: true,
         skipEmptyLines: true,
         complete: async (results) => {
@@ -198,6 +236,15 @@ export function Students() {
           setImporting(false);
         }
       });
+    }
+  };
+
+  // Cancel file selection
+  const handleCancelImport = () => {
+    setSelectedFile(null);
+    setPreviewData([]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -273,6 +320,8 @@ export function Students() {
 
     setImportResults({ success: successCount, failed: failedCount, errors });
     setImporting(false);
+    setSelectedFile(null);
+    setPreviewData([]);
     await fetchStudents();
 
     // Reset file input
@@ -434,12 +483,12 @@ export function Students() {
           {/* Import Button - PRIMARY ACTION */}
           <button
             onClick={() => fileInputRef.current?.click()}
-            disabled={importing}
+            disabled={importing || selectedFile !== null}
             className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl font-semibold text-base"
-            title="Upload CSV or Excel file to import students"
+            title="Select CSV or Excel file to import students"
           >
             <Upload className="w-5 h-5" />
-            {importing ? 'Importing...' : 'Import Students'}
+            {selectedFile ? 'File Selected' : 'Select File to Import'}
           </button>
 
           {/* Export Buttons */}
@@ -509,9 +558,86 @@ export function Students() {
         ref={fileInputRef}
         type="file"
         accept=".csv,.xlsx,.xls"
-        onChange={handleFileImport}
+        onChange={handleFileSelect}
         className="hidden"
       />
+
+      {/* File Preview and Import Confirmation */}
+      {selectedFile && previewData.length > 0 && (
+        <Card className="mb-6 bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">File Selected: {selectedFile.name}</h3>
+                <p className="text-sm text-gray-600 mt-1">Preview of first 5 rows - Click "Import Now" to add these students</p>
+              </div>
+              <button
+                onClick={handleCancelImport}
+                className="text-gray-500 hover:text-gray-700"
+                title="Cancel"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Preview Table */}
+            <div className="bg-white rounded-lg border border-gray-200 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="text-left py-2 px-3 font-medium text-gray-700">Name</th>
+                    <th className="text-left py-2 px-3 font-medium text-gray-700">Email</th>
+                    <th className="text-left py-2 px-3 font-medium text-gray-700">Assignment Limit</th>
+                    <th className="text-left py-2 px-3 font-medium text-gray-700">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {previewData.map((row, index) => {
+                    const name = row.name || row.Name || row.NAME || row['Student Name'] || row['student_name'];
+                    const email = row.email || row.Email || row.EMAIL || row['Email Address'] || row['email_address'];
+                    const limit = row.assignmentLimit || row.assignment_limit || row['Assignment Limit'] || row.limit || '3';
+                    const status = row.status || row.Status || row.STATUS || 'active';
+                    
+                    return (
+                      <tr key={index} className="border-t border-gray-100">
+                        <td className="py-2 px-3 text-gray-900">{name || '❌ Missing'}</td>
+                        <td className="py-2 px-3 text-gray-600">{email || '❌ Missing'}</td>
+                        <td className="py-2 px-3 text-gray-600">{limit}</td>
+                        <td className="py-2 px-3">
+                          <span className={`inline-flex px-2 py-0.5 text-xs rounded-full ${
+                            status.toLowerCase() === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                          }`}>
+                            {status}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Import Action Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={handleConfirmImport}
+                disabled={importing}
+                className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl font-semibold"
+              >
+                <Upload className="w-5 h-5" />
+                {importing ? 'Importing...' : 'Import Now'}
+              </button>
+              <button
+                onClick={handleCancelImport}
+                disabled={importing}
+                className="bg-gray-200 text-gray-800 px-6 py-3 rounded-lg hover:bg-gray-300 disabled:opacity-50 transition-all font-semibold"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Import Results */}
       {importResults && (
