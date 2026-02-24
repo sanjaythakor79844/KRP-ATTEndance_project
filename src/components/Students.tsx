@@ -424,8 +424,8 @@ export function Students() {
       <div className="mb-8">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Students</h1>
-            <p className="text-sm text-gray-600 mt-2">Manage student information and assignment limits</p>
+            <h1 className="text-3xl font-bold text-gray-900">Students Management</h1>
+            <p className="text-sm text-gray-600 mt-2">Import, export, and manage student information</p>
           </div>
         </div>
         
