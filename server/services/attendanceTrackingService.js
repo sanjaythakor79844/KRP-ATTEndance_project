@@ -12,16 +12,20 @@ class AttendanceTrackingService {
     try {
       // Check if attendance already exists for this student on this date
       const existingRecords = await mongoService.getAttendance();
-      const existingRecord = existingRecords.find(r => 
-        r.studentId === studentId && 
-        new Date(r.timestamp).toISOString().split('T')[0] === date
-      );
+      
+      // Find ALL existing records for this student on this date (to handle duplicates)
+      const existingRecordsForDate = existingRecords.filter(r => {
+        const recordDate = new Date(r.timestamp).toISOString().split('T')[0];
+        return r.studentId === studentId && recordDate === date;
+      });
 
-      if (existingRecord) {
-        // Update existing record
-        console.log(`🔄 Updating attendance for ${studentName} on ${date}`);
-        // Delete old record and create new one (simpler than update)
-        await mongoService.deleteAttendanceRecord(existingRecord.id);
+      // Delete ALL existing records for this student on this date
+      if (existingRecordsForDate.length > 0) {
+        console.log(`🔄 Updating attendance for ${studentName} on ${date} (removing ${existingRecordsForDate.length} existing record(s))`);
+        
+        for (const record of existingRecordsForDate) {
+          await mongoService.deleteAttendanceRecord(record.id);
+        }
       }
 
       const record = {
@@ -121,10 +125,22 @@ class AttendanceTrackingService {
         records = records.filter(r => new Date(r.date || r.timestamp) <= new Date(endDate));
       }
 
-      const totalDays = records.length;
-      const presentDays = records.filter(r => r.status === 'present').length;
-      const absentDays = records.filter(r => r.status === 'absent').length;
-      const lateDays = records.filter(r => r.status === 'late').length;
+      // Remove duplicates - keep only the latest record for each date
+      const uniqueRecords = new Map();
+      records.forEach(record => {
+        const recordDate = new Date(record.timestamp).toISOString().split('T')[0];
+        const existing = uniqueRecords.get(recordDate);
+        if (!existing || new Date(record.timestamp) > new Date(existing.timestamp)) {
+          uniqueRecords.set(recordDate, record);
+        }
+      });
+      
+      const uniqueRecordsArray = Array.from(uniqueRecords.values());
+
+      const totalDays = uniqueRecordsArray.length;
+      const presentDays = uniqueRecordsArray.filter(r => r.status === 'present').length;
+      const absentDays = uniqueRecordsArray.filter(r => r.status === 'absent').length;
+      const lateDays = uniqueRecordsArray.filter(r => r.status === 'late').length;
       
       // Calculate percentage: (present + late) / total * 100
       const percentage = totalDays > 0 ? Math.round(((presentDays + lateDays) / totalDays) * 100) : 0;
@@ -288,11 +304,22 @@ class AttendanceTrackingService {
         return recordDate === today;
       });
       
+      // Remove duplicates - keep only the latest record for each student
+      const uniqueRecords = new Map();
+      todaysRecords.forEach(record => {
+        const existing = uniqueRecords.get(record.studentId);
+        if (!existing || new Date(record.timestamp) > new Date(existing.timestamp)) {
+          uniqueRecords.set(record.studentId, record);
+        }
+      });
+      
+      const uniqueTodaysRecords = Array.from(uniqueRecords.values());
+      
       const total = students.filter(s => s.status === 'active').length;
-      const marked = new Set(todaysRecords.map(r => r.studentId)).size;
-      const present = todaysRecords.filter(r => r.status === 'present').length;
-      const absent = todaysRecords.filter(r => r.status === 'absent').length;
-      const late = todaysRecords.filter(r => r.status === 'late').length;
+      const marked = uniqueTodaysRecords.length;
+      const present = uniqueTodaysRecords.filter(r => r.status === 'present').length;
+      const absent = uniqueTodaysRecords.filter(r => r.status === 'absent').length;
+      const late = uniqueTodaysRecords.filter(r => r.status === 'late').length;
       const notMarked = total - marked;
 
       return {
@@ -316,6 +343,55 @@ class AttendanceTrackingService {
         absent: 0,
         late: 0,
         percentage: 0
+      };
+    }
+  }
+
+  // Clean up duplicate attendance records
+  async cleanupDuplicates() {
+    try {
+      console.log('🧹 Cleaning up duplicate attendance records...');
+      const allRecords = await mongoService.getAttendance();
+      
+      // Group records by studentId and date
+      const recordsByStudentAndDate = new Map();
+      
+      allRecords.forEach(record => {
+        const recordDate = new Date(record.timestamp).toISOString().split('T')[0];
+        const key = `${record.studentId}_${recordDate}`;
+        
+        if (!recordsByStudentAndDate.has(key)) {
+          recordsByStudentAndDate.set(key, []);
+        }
+        recordsByStudentAndDate.get(key).push(record);
+      });
+      
+      // Find and delete duplicates (keep the latest one)
+      let duplicatesRemoved = 0;
+      
+      for (const [key, records] of recordsByStudentAndDate.entries()) {
+        if (records.length > 1) {
+          // Sort by timestamp (newest first)
+          records.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+          
+          // Keep the first (newest), delete the rest
+          for (let i = 1; i < records.length; i++) {
+            await mongoService.deleteAttendanceRecord(records[i].id);
+            duplicatesRemoved++;
+          }
+        }
+      }
+      
+      console.log(`✅ Cleanup complete: ${duplicatesRemoved} duplicate records removed`);
+      return {
+        success: true,
+        duplicatesRemoved
+      };
+    } catch (error) {
+      console.error('❌ Error cleaning up duplicates:', error);
+      return {
+        success: false,
+        error: error.message
       };
     }
   }

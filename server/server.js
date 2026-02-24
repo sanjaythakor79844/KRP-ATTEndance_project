@@ -1160,6 +1160,30 @@ app.post('/api/attendance/check-and-notify', async (req, res) => {
   }
 });
 
+// Cleanup duplicate attendance records
+app.post('/api/attendance/cleanup-duplicates', async (req, res) => {
+  try {
+    const result = await attendanceTrackingService.cleanupDuplicates();
+    
+    if (result.success) {
+      await mongoService.addLog({
+        action: 'Attendance Cleanup',
+        details: `Removed ${result.duplicatesRemoved} duplicate attendance records`,
+      });
+      
+      res.json({ 
+        success: true, 
+        message: `Cleanup complete: ${result.duplicatesRemoved} duplicate records removed`,
+        duplicatesRemoved: result.duplicatesRemoved
+      });
+    } else {
+      res.status(500).json({ success: false, error: result.error });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Trigger automatic attendance check manually (for testing)
 app.post('/api/attendance/trigger-automatic', async (req, res) => {
   try {
@@ -1264,11 +1288,22 @@ app.get('/api/attendance/by-date', async (req, res) => {
       return recordDate === targetDate;
     });
     
+    // Remove duplicates - keep only the latest record for each student
+    const uniqueRecords = new Map();
+    dateRecords.forEach(record => {
+      const existing = uniqueRecords.get(record.studentId);
+      if (!existing || new Date(record.timestamp) > new Date(existing.timestamp)) {
+        uniqueRecords.set(record.studentId, record);
+      }
+    });
+    
+    const uniqueDateRecords = Array.from(uniqueRecords.values());
+    
     // Get student details
     const students = await mongoService.getStudents();
     
     // Enrich records with student info
-    const enrichedRecords = dateRecords.map(record => {
+    const enrichedRecords = uniqueDateRecords.map(record => {
       const student = students.find(s => s.id === record.studentId);
       return {
         studentId: record.studentId,
@@ -1792,6 +1827,19 @@ app.listen(PORT, async () => {
   } catch (error) {
     console.log('⚠️ Gmail service failed to initialize, but server continues running');
     console.log('⚠️ You can connect Gmail later via the dashboard');
+  }
+
+  // Cleanup duplicate attendance records on startup
+  try {
+    console.log('🧹 Running attendance duplicate cleanup...');
+    const cleanupResult = await attendanceTrackingService.cleanupDuplicates();
+    if (cleanupResult.success && cleanupResult.duplicatesRemoved > 0) {
+      console.log(`✅ Removed ${cleanupResult.duplicatesRemoved} duplicate attendance records`);
+    } else {
+      console.log('✅ No duplicate attendance records found');
+    }
+  } catch (error) {
+    console.log('⚠️ Attendance cleanup failed:', error.message);
   }
 
   // Start automatic attendance reminders after Gmail is ready
