@@ -1543,6 +1543,9 @@ app.get('/api/gmail/callback', async (req, res) => {
   try {
     const { code } = req.query;
     
+    // Use production frontend URL
+    const FRONTEND_URL = process.env.FRONTEND_URL || 'https://krp-att-endance-project.vercel.app';
+    
     if (!code) {
       return res.status(400).send(`
         <!DOCTYPE html>
@@ -1574,7 +1577,7 @@ app.get('/api/gmail/callback', async (req, res) => {
           <div class="container">
             <h1>❌ Authentication Error</h1>
             <p>No authorization code provided</p>
-            <a href="http://localhost:3000" style="color: white;">Go to Dashboard</a>
+            <a href="${FRONTEND_URL}" style="color: white;">Go to Dashboard</a>
           </div>
         </body>
         </html>
@@ -1647,7 +1650,7 @@ app.get('/api/gmail/callback', async (req, res) => {
               Connected as: <strong>${result.email}</strong>
             </div>
             <p>Your Gmail is connected and ready to send emails.</p>
-            <a href="http://localhost:3000" class="btn">Go to Dashboard</a>
+            <a href="${FRONTEND_URL}" class="btn">Go to Dashboard</a>
           </div>
         </body>
         </html>
@@ -1683,7 +1686,7 @@ app.get('/api/gmail/callback', async (req, res) => {
           <div class="container">
             <h1>❌ Authentication Failed</h1>
             <p>${result.error}</p>
-            <a href="http://localhost:3000" style="color: white;">Go to Dashboard</a>
+            <a href="${FRONTEND_URL}" style="color: white;">Go to Dashboard</a>
           </div>
         </body>
         </html>
@@ -1721,7 +1724,7 @@ app.get('/api/gmail/callback', async (req, res) => {
         <div class="container">
           <h1>❌ Error</h1>
           <p>${error.message}</p>
-          <a href="http://localhost:3000" style="color: white;">Go to Dashboard</a>
+          <a href="${FRONTEND_URL}" style="color: white;">Go to Dashboard</a>
         </div>
       </body>
       </html>
