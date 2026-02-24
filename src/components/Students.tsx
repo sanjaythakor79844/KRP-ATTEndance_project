@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Edit2, Trash2, Upload, Download, FileSpreadsheet } from 'lucide-react';
+import { Plus, Edit2, Trash2, Upload, Download, FileSpreadsheet, AlertCircle } from 'lucide-react';
 import { Card } from './ui/Card';
 import { API_BASE_URL } from '../config';
 import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
 
 interface Student {
   id: string;
@@ -147,76 +148,143 @@ export function Students() {
     // Check file type
     const fileExtension = file.name.split('.').pop()?.toLowerCase();
     if (!['csv', 'xlsx', 'xls'].includes(fileExtension || '')) {
-      alert('❌ Please upload a CSV or Excel file');
+      alert('❌ Please upload a CSV or Excel file (.csv, .xlsx, .xls)');
       return;
     }
 
     setImporting(true);
     setImportResults(null);
 
-    // Parse CSV file
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: async (results) => {
-        const data = results.data as any[];
-        let successCount = 0;
-        let failedCount = 0;
-        const errors: string[] = [];
-
-        for (let i = 0; i < data.length; i++) {
-          const row = data[i];
+    // Handle Excel files (.xlsx, .xls)
+    if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+      const reader = new FileReader();
+      
+      reader.onload = async (e) => {
+        try {
+          const data = e.target?.result;
+          const workbook = XLSX.read(data, { type: 'binary' });
           
-          // Validate required fields
-          if (!row.name || !row.email) {
-            errors.push(`Row ${i + 1}: Missing name or email`);
-            failedCount++;
-            continue;
-          }
-
-          try {
-            const studentData = {
-              name: row.name.trim(),
-              email: row.email.trim().toLowerCase(),
-              assignmentLimit: parseInt(row.assignmentLimit || row.assignment_limit || '3'),
-              status: (row.status?.toLowerCase() === 'inactive' ? 'inactive' : 'active') as 'active' | 'inactive',
-            };
-
-            // Add student via API
-            const response = await fetch(`${API_BASE_URL}/api/students`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(studentData),
-            });
-
-            const result = await response.json();
-
-            if (response.ok && result.success) {
-              successCount++;
-            } else {
-              errors.push(`Row ${i + 1} (${row.name}): ${result.error || 'Failed to add'}`);
-              failedCount++;
-            }
-          } catch (error) {
-            errors.push(`Row ${i + 1} (${row.name}): ${error instanceof Error ? error.message : 'Unknown error'}`);
-            failedCount++;
-          }
+          // Get first sheet
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          
+          // Convert to JSON
+          const jsonData = XLSX.utils.sheet_to_json(worksheet);
+          
+          await processImportData(jsonData);
+        } catch (error) {
+          alert(`❌ Error reading Excel file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          setImporting(false);
         }
-
-        setImportResults({ success: successCount, failed: failedCount, errors });
+      };
+      
+      reader.onerror = () => {
+        alert('❌ Error reading file');
         setImporting(false);
-        await fetchStudents();
-
-        // Reset file input
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
+      };
+      
+      reader.readAsBinaryString(file);
+    } 
+    // Handle CSV files
+    else {
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: async (results) => {
+          await processImportData(results.data);
+        },
+        error: (error) => {
+          alert(`❌ Error parsing CSV file: ${error.message}`);
+          setImporting(false);
         }
-      },
-      error: (error) => {
-        alert(`❌ Error parsing file: ${error.message}`);
-        setImporting(false);
+      });
+    }
+  };
+
+  // Process imported data (common for both CSV and Excel)
+  const processImportData = async (data: any[]) => {
+    let successCount = 0;
+    let failedCount = 0;
+    const errors: string[] = [];
+
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      
+      // Validate required fields (support multiple column name formats)
+      const name = row.name || row.Name || row.NAME || row['Student Name'] || row['student_name'];
+      const email = row.email || row.Email || row.EMAIL || row['Email Address'] || row['email_address'];
+      
+      if (!name || !email) {
+        errors.push(`Row ${i + 1}: Missing name or email`);
+        failedCount++;
+        continue;
       }
-    });
+
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        errors.push(`Row ${i + 1} (${name}): Invalid email format`);
+        failedCount++;
+        continue;
+      }
+
+      try {
+        const studentData = {
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          assignmentLimit: parseInt(
+            row.assignmentLimit || 
+            row.assignment_limit || 
+            row['Assignment Limit'] || 
+            row.limit || 
+            '3'
+          ),
+          status: (
+            (row.status || row.Status || row.STATUS || 'active')
+              .toLowerCase() === 'inactive' ? 'inactive' : 'active'
+          ) as 'active' | 'inactive',
+        };
+
+        // Validate assignment limit
+        if (isNaN(studentData.assignmentLimit) || studentData.assignmentLimit < 1) {
+          studentData.assignmentLimit = 3;
+        }
+
+        // Add student via API
+        const response = await fetch(`${API_BASE_URL}/api/students`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(studentData),
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+          successCount++;
+        } else {
+          errors.push(`Row ${i + 1} (${name}): ${result.error || 'Failed to add'}`);
+          failedCount++;
+        }
+      } catch (error) {
+        errors.push(`Row ${i + 1} (${name}): ${error instanceof Error ? error.message : 'Unknown error'}`);
+        failedCount++;
+      }
+    }
+
+    setImportResults({ success: successCount, failed: failedCount, errors });
+    setImporting(false);
+    await fetchStudents();
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+
+    // Show summary alert
+    if (successCount > 0 || failedCount > 0) {
+      const message = `Import Complete!\n\n✅ Successfully added: ${successCount}\n❌ Failed: ${failedCount}`;
+      alert(message);
+    }
   };
 
   // Export students to CSV
@@ -242,18 +310,51 @@ export function Students() {
     document.body.removeChild(link);
   };
 
+  // Export students to Excel
+  const handleExportExcel = () => {
+    const excelData = students.map(student => ({
+      'Name': student.name,
+      'Email': student.email,
+      'Assignment Limit': student.assignmentLimit,
+      'Current Assignments': student.currentAssignments,
+      'Status': student.status,
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Students');
+    
+    // Auto-size columns
+    const maxWidth = excelData.reduce((w, r) => Math.max(w, r.Name.length), 10);
+    worksheet['!cols'] = [
+      { wch: maxWidth },
+      { wch: 30 },
+      { wch: 15 },
+      { wch: 18 },
+      { wch: 10 }
+    ];
+    
+    XLSX.writeFile(workbook, `students_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
   // Download sample CSV template
   const downloadSampleCSV = () => {
     const sampleData = [
       {
-        name: 'John Doe',
-        email: 'john@example.com',
+        name: 'Dakshi Kocharekar',
+        email: 'dakshikocharekar6@gmail.com',
+        assignmentLimit: 5,
+        status: 'active'
+      },
+      {
+        name: 'Bhavna',
+        email: 'bhavna@example.com',
         assignmentLimit: 3,
         status: 'active'
       },
       {
-        name: 'Jane Smith',
-        email: 'jane@example.com',
+        name: 'Shafaq',
+        email: 'shafaqsultana@hotmail.com',
         assignmentLimit: 5,
         status: 'active'
       }
@@ -272,6 +373,44 @@ export function Students() {
     document.body.removeChild(link);
   };
 
+  // Download sample Excel template
+  const downloadSampleExcel = () => {
+    const sampleData = [
+      {
+        'Name': 'Dakshi Kocharekar',
+        'Email': 'dakshikocharekar6@gmail.com',
+        'Assignment Limit': 5,
+        'Status': 'active'
+      },
+      {
+        'Name': 'Bhavna',
+        'Email': 'bhavna@example.com',
+        'Assignment Limit': 3,
+        'Status': 'active'
+      },
+      {
+        'Name': 'Shafaq',
+        'Email': 'shafaqsultana@hotmail.com',
+        'Assignment Limit': 5,
+        'Status': 'active'
+      }
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(sampleData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Students');
+    
+    // Auto-size columns
+    worksheet['!cols'] = [
+      { wch: 25 },
+      { wch: 35 },
+      { wch: 18 },
+      { wch: 12 }
+    ];
+    
+    XLSX.writeFile(workbook, 'students_template.xlsx');
+  };
+
   if (loading) {
     return (
       <div className="p-6">
@@ -287,33 +426,52 @@ export function Students() {
           <h1 className="text-3xl font-bold text-gray-900">Students</h1>
           <p className="text-sm text-gray-600 mt-2">Manage student information and assignment limits</p>
         </div>
-        <div className="flex gap-3">
-          <button
-            onClick={downloadSampleCSV}
-            className="flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 border border-gray-300"
-            title="Download CSV Template"
-          >
-            <FileSpreadsheet className="w-4 h-4" />
-            Template
-          </button>
+        <div className="flex flex-wrap gap-3">
+          <div className="relative group">
+            <button
+              onClick={downloadSampleCSV}
+              className="flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 border border-gray-300 transition-all"
+              title="Download CSV Template"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              CSV Template
+            </button>
+          </div>
+          <div className="relative group">
+            <button
+              onClick={downloadSampleExcel}
+              className="flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 border border-gray-300 transition-all"
+              title="Download Excel Template"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              Excel Template
+            </button>
+          </div>
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={importing}
-            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
             <Upload className="w-4 h-4" />
-            {importing ? 'Importing...' : 'Import CSV'}
+            {importing ? 'Importing...' : 'Import CSV/Excel'}
           </button>
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700"
+            className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-all"
           >
             <Download className="w-4 h-4" />
             Export CSV
           </button>
           <button
+            onClick={handleExportExcel}
+            className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-all"
+          >
+            <Download className="w-4 h-4" />
+            Export Excel
+          </button>
+          <button
             onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-all"
           >
             <Plus className="w-4 h-4" />
             Add Student
