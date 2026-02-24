@@ -421,54 +421,70 @@ export function Students() {
 
   return (
     <div className="p-6">
-      <div className="mb-8 flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Students</h1>
-          <p className="text-sm text-gray-600 mt-2">Manage student information and assignment limits</p>
+      <div className="mb-8">
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Students</h1>
+            <p className="text-sm text-gray-600 mt-2">Manage student information and assignment limits</p>
+          </div>
         </div>
+        
+        {/* Action Buttons */}
         <div className="flex flex-wrap gap-3">
-          <div className="relative group">
+          {/* Template Downloads */}
+          <div className="flex gap-2 p-2 bg-gray-50 rounded-lg border border-gray-200">
+            <span className="text-xs text-gray-500 self-center px-2">Templates:</span>
             <button
               onClick={downloadSampleCSV}
-              className="flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 border border-gray-300 transition-all"
+              className="flex items-center gap-2 bg-white text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-100 border border-gray-300 transition-all text-sm"
               title="Download CSV Template"
             >
               <FileSpreadsheet className="w-4 h-4" />
-              CSV Template
+              CSV
             </button>
-          </div>
-          <div className="relative group">
             <button
               onClick={downloadSampleExcel}
-              className="flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 border border-gray-300 transition-all"
+              className="flex items-center gap-2 bg-white text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-100 border border-gray-300 transition-all text-sm"
               title="Download Excel Template"
             >
               <FileSpreadsheet className="w-4 h-4" />
-              Excel Template
+              Excel
             </button>
           </div>
+
+          {/* Import Button - MAIN ACTION */}
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={importing}
-            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            className="flex items-center gap-2 bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg font-medium"
+            title="Click to select CSV or Excel file to import students"
           >
-            <Upload className="w-4 h-4" />
-            {importing ? 'Importing...' : 'Import CSV/Excel'}
+            <Upload className="w-5 h-5" />
+            {importing ? 'Importing...' : '📂 Import Students'}
           </button>
-          <button
-            onClick={handleExportCSV}
-            className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-all"
-          >
-            <Download className="w-4 h-4" />
-            Export CSV
-          </button>
-          <button
-            onClick={handleExportExcel}
-            className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-all"
-          >
-            <Download className="w-4 h-4" />
-            Export Excel
-          </button>
+
+          {/* Export Buttons */}
+          <div className="flex gap-2 p-2 bg-purple-50 rounded-lg border border-purple-200">
+            <span className="text-xs text-purple-600 self-center px-2">Export:</span>
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center gap-2 bg-white text-purple-700 px-3 py-2 rounded-lg hover:bg-purple-100 border border-purple-300 transition-all text-sm"
+              title="Export all students to CSV"
+            >
+              <Download className="w-4 h-4" />
+              CSV
+            </button>
+            <button
+              onClick={handleExportExcel}
+              className="flex items-center gap-2 bg-white text-purple-700 px-3 py-2 rounded-lg hover:bg-purple-100 border border-purple-300 transition-all text-sm"
+              title="Export all students to Excel"
+            >
+              <Download className="w-4 h-4" />
+              Excel
+            </button>
+          </div>
+
+          {/* Add Student Button */}
           <button
             onClick={() => setShowForm(true)}
             className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-all"
@@ -476,6 +492,14 @@ export function Students() {
             <Plus className="w-4 h-4" />
             Add Student
           </button>
+        </div>
+
+        {/* Help Text */}
+        <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-800">
+            💡 <strong>Quick Import:</strong> Click the green "📂 Import Students" button to upload your CSV or Excel file with student data.
+            Need a template? Download CSV or Excel template first.
+          </p>
         </div>
       </div>
 
