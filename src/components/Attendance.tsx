@@ -266,8 +266,33 @@ export function Attendance() {
 
   const markAttendance = async (studentId: string, status: 'present' | 'absent' | 'late') => {
     setMarking(studentId);
+    
+    // IMMEDIATE VISUAL FEEDBACK - Update UI instantly before API call
+    const student = students.find(s => s.id === studentId);
+    const statusEmoji = status === 'present' ? '✅' : status === 'absent' ? '❌' : '⏰';
+    const statusText = status === 'present' ? 'Present' : status === 'absent' ? 'Absent' : 'Late';
+    
+    // Show immediate feedback
+    showToast(`⏳ Marking ${student?.name} as ${statusText}...`, 'success');
+    
+    // OPTIMISTIC UPDATE - Update counts immediately for instant feedback
+    const existingRecord = attendanceRecords.find(r => r.studentId === studentId);
+    if (existingRecord) {
+      // Update existing record
+      if (existingRecord.status === 'present') setPresentCount(prev => prev - 1);
+      if (existingRecord.status === 'absent') setAbsentCount(prev => prev - 1);
+      if (existingRecord.status === 'late') setLateCount(prev => prev - 1);
+    } else {
+      // New record
+      setNotMarkedCount(prev => prev - 1);
+    }
+    
+    // Add new status
+    if (status === 'present') setPresentCount(prev => prev + 1);
+    if (status === 'absent') setAbsentCount(prev => prev + 1);
+    if (status === 'late') setLateCount(prev => prev + 1);
+    
     try {
-      const student = students.find(s => s.id === studentId);
       const response = await fetch(`${API_BASE_URL}/api/attendance/mark`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -281,23 +306,25 @@ export function Attendance() {
 
       const result = await response.json();
       if (result.success) {
-        // Show success toast
-        const statusEmoji = status === 'present' ? '✅' : status === 'absent' ? '❌' : '⏰';
-        const statusText = status === 'present' ? 'Present' : status === 'absent' ? 'Absent' : 'Late';
-        showToast(`${statusEmoji} ${student?.name} marked as ${statusText}`, 'success');
+        // Show success confirmation
+        showToast(`${statusEmoji} ${student?.name} marked as ${statusText} ✓`, 'success');
         
-        // Reload all data to reflect changes
+        // Reload all data to reflect changes (this will correct any optimistic update errors)
         await Promise.all([
           loadAttendanceForDate(selectedDate),
           loadSummaries(),
           loadLast5DaysAttendance()
         ]);
       } else {
-        showToast(`Failed: ${result.error}`, 'error');
+        showToast(`❌ Failed: ${result.error}`, 'error');
+        // Revert optimistic update on error
+        await loadAttendanceForDate(selectedDate);
       }
     } catch (error) {
       console.error('Error marking attendance:', error);
-      showToast('Failed to mark attendance. Please try again.', 'error');
+      showToast('❌ Failed to mark attendance. Please try again.', 'error');
+      // Revert optimistic update on error
+      await loadAttendanceForDate(selectedDate);
     } finally {
       setMarking(null);
     }
@@ -742,48 +769,63 @@ export function Attendance() {
                             <button
                               onClick={() => markAttendance(student.id, 'present')}
                               disabled={marking === student.id || status === 'present'}
-                              className={`p-1.5 md:p-2 rounded-full transition-all hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed ${
-                                status === 'present' 
-                                  ? 'bg-green-600 cursor-default' 
+                              className={`p-1.5 md:p-2 rounded-full transition-all hover:scale-110 disabled:cursor-not-allowed relative ${
+                                marking === student.id 
+                                  ? 'animate-pulse bg-green-200' 
+                                  : status === 'present' 
+                                  ? 'bg-green-600 shadow-lg shadow-green-300 cursor-default' 
                                   : 'hover:bg-green-100'
                               }`}
-                              title={status === 'present' ? 'Already Present' : 'Mark Present'}
+                              title={marking === student.id ? 'Marking...' : status === 'present' ? 'Already Present ✓' : 'Mark Present'}
                             >
                               <CheckCircle className={`w-4 h-4 md:w-5 md:h-5 ${
                                 status === 'present' ? 'text-white' : 'text-green-600'
                               }`} />
+                              {marking === student.id && (
+                                <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-ping"></span>
+                              )}
                             </button>
 
                             {/* Absent Button */}
                             <button
                               onClick={() => markAttendance(student.id, 'absent')}
                               disabled={marking === student.id || status === 'absent'}
-                              className={`p-1.5 md:p-2 rounded-full transition-all hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed ${
-                                status === 'absent' 
-                                  ? 'bg-red-600 cursor-default' 
+                              className={`p-1.5 md:p-2 rounded-full transition-all hover:scale-110 disabled:cursor-not-allowed relative ${
+                                marking === student.id 
+                                  ? 'animate-pulse bg-red-200' 
+                                  : status === 'absent' 
+                                  ? 'bg-red-600 shadow-lg shadow-red-300 cursor-default' 
                                   : 'hover:bg-red-100'
                               }`}
-                              title={status === 'absent' ? 'Already Absent' : 'Mark Absent'}
+                              title={marking === student.id ? 'Marking...' : status === 'absent' ? 'Already Absent ✓' : 'Mark Absent'}
                             >
                               <XCircle className={`w-4 h-4 md:w-5 md:h-5 ${
                                 status === 'absent' ? 'text-white' : 'text-red-600'
                               }`} />
+                              {marking === student.id && (
+                                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-ping"></span>
+                              )}
                             </button>
 
                             {/* Late Button */}
                             <button
                               onClick={() => markAttendance(student.id, 'late')}
                               disabled={marking === student.id || status === 'late'}
-                              className={`p-1.5 md:p-2 rounded-full transition-all hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed ${
-                                status === 'late' 
-                                  ? 'bg-yellow-600 cursor-default' 
+                              className={`p-1.5 md:p-2 rounded-full transition-all hover:scale-110 disabled:cursor-not-allowed relative ${
+                                marking === student.id 
+                                  ? 'animate-pulse bg-yellow-200' 
+                                  : status === 'late' 
+                                  ? 'bg-yellow-600 shadow-lg shadow-yellow-300 cursor-default' 
                                   : 'hover:bg-yellow-100'
                               }`}
-                              title={status === 'late' ? 'Already Late' : 'Mark Late'}
+                              title={marking === student.id ? 'Marking...' : status === 'late' ? 'Already Late ✓' : 'Mark Late'}
                             >
                               <Clock className={`w-4 h-4 md:w-5 md:h-5 ${
                                 status === 'late' ? 'text-white' : 'text-yellow-600'
                               }`} />
+                              {marking === student.id && (
+                                <span className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-500 rounded-full animate-ping"></span>
+                              )}
                             </button>
 
                             {/* Check/Verify Button */}
