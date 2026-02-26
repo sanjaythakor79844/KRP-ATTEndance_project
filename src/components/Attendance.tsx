@@ -764,105 +764,74 @@ export function Attendance() {
                           )}
                         </td>
                         <td className="py-3 px-2 md:px-4">
-                          <div className="flex items-center justify-center gap-1 md:gap-2">
-                            {/* Present Button */}
+                          <div className="flex items-center justify-center gap-2 flex-wrap">
+                            {/* Present Button - With Text Label */}
                             <button
                               onClick={() => markAttendance(student.id, 'present')}
                               disabled={marking === student.id || status === 'present'}
-                              className={`p-1.5 md:p-2 rounded-full transition-all hover:scale-110 disabled:cursor-not-allowed relative ${
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-all disabled:cursor-not-allowed relative ${
                                 marking === student.id 
-                                  ? 'animate-pulse bg-green-200' 
+                                  ? 'animate-pulse bg-green-200 text-green-800 border-2 border-green-400' 
                                   : status === 'present' 
-                                  ? 'bg-green-600 shadow-lg shadow-green-300 cursor-default' 
-                                  : 'hover:bg-green-100'
+                                  ? 'bg-green-600 text-white shadow-lg shadow-green-300 border-2 border-green-700' 
+                                  : 'bg-white text-green-700 border-2 border-green-300 hover:bg-green-50 hover:border-green-500 hover:shadow-md'
                               }`}
-                              title={marking === student.id ? 'Marking...' : status === 'present' ? 'Already Present ✓' : 'Mark Present'}
                             >
-                              <CheckCircle className={`w-4 h-4 md:w-5 md:h-5 ${
-                                status === 'present' ? 'text-white' : 'text-green-600'
-                              }`} />
+                              <CheckCircle className="w-4 h-4" />
+                              <span className="hidden sm:inline">Present</span>
+                              <span className="sm:hidden">P</span>
                               {marking === student.id && (
-                                <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-ping"></span>
+                                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-500 rounded-full animate-ping"></span>
+                              )}
+                              {status === 'present' && (
+                                <span className="ml-1">✓</span>
                               )}
                             </button>
 
-                            {/* Absent Button */}
+                            {/* Absent Button - With Text Label */}
                             <button
                               onClick={() => markAttendance(student.id, 'absent')}
                               disabled={marking === student.id || status === 'absent'}
-                              className={`p-1.5 md:p-2 rounded-full transition-all hover:scale-110 disabled:cursor-not-allowed relative ${
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-all disabled:cursor-not-allowed relative ${
                                 marking === student.id 
-                                  ? 'animate-pulse bg-red-200' 
+                                  ? 'animate-pulse bg-red-200 text-red-800 border-2 border-red-400' 
                                   : status === 'absent' 
-                                  ? 'bg-red-600 shadow-lg shadow-red-300 cursor-default' 
-                                  : 'hover:bg-red-100'
+                                  ? 'bg-red-600 text-white shadow-lg shadow-red-300 border-2 border-red-700' 
+                                  : 'bg-white text-red-700 border-2 border-red-300 hover:bg-red-50 hover:border-red-500 hover:shadow-md'
                               }`}
-                              title={marking === student.id ? 'Marking...' : status === 'absent' ? 'Already Absent ✓' : 'Mark Absent'}
                             >
-                              <XCircle className={`w-4 h-4 md:w-5 md:h-5 ${
-                                status === 'absent' ? 'text-white' : 'text-red-600'
-                              }`} />
+                              <XCircle className="w-4 h-4" />
+                              <span className="hidden sm:inline">Absent</span>
+                              <span className="sm:hidden">A</span>
                               {marking === student.id && (
-                                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-ping"></span>
+                                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-ping"></span>
+                              )}
+                              {status === 'absent' && (
+                                <span className="ml-1">✓</span>
                               )}
                             </button>
 
-                            {/* Late Button */}
+                            {/* Late Button - With Text Label */}
                             <button
                               onClick={() => markAttendance(student.id, 'late')}
                               disabled={marking === student.id || status === 'late'}
-                              className={`p-1.5 md:p-2 rounded-full transition-all hover:scale-110 disabled:cursor-not-allowed relative ${
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-all disabled:cursor-not-allowed relative ${
                                 marking === student.id 
-                                  ? 'animate-pulse bg-yellow-200' 
+                                  ? 'animate-pulse bg-yellow-200 text-yellow-800 border-2 border-yellow-400' 
                                   : status === 'late' 
-                                  ? 'bg-yellow-600 shadow-lg shadow-yellow-300 cursor-default' 
-                                  : 'hover:bg-yellow-100'
+                                  ? 'bg-yellow-600 text-white shadow-lg shadow-yellow-300 border-2 border-yellow-700' 
+                                  : 'bg-white text-yellow-700 border-2 border-yellow-300 hover:bg-yellow-50 hover:border-yellow-500 hover:shadow-md'
                               }`}
-                              title={marking === student.id ? 'Marking...' : status === 'late' ? 'Already Late ✓' : 'Mark Late'}
                             >
-                              <Clock className={`w-4 h-4 md:w-5 md:h-5 ${
-                                status === 'late' ? 'text-white' : 'text-yellow-600'
-                              }`} />
+                              <Clock className="w-4 h-4" />
+                              <span className="hidden sm:inline">Late</span>
+                              <span className="sm:hidden">L</span>
                               {marking === student.id && (
-                                <span className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-500 rounded-full animate-ping"></span>
+                                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-yellow-500 rounded-full animate-ping"></span>
                               )}
-                            </button>
-
-                            {/* Check/Verify Button */}
-                            <button
-                              onClick={() => {
-                                const summary = getStudentSummary(student.id);
-                                if (summary) {
-                                  alert(`${student.name}\n\nTotal Days: ${summary.totalDays}\nPresent: ${summary.presentDays}\nAbsent: ${summary.absentDays}\nLate: ${summary.lateDays}\nPercentage: ${summary.percentage.toFixed(1)}%`);
-                                } else {
-                                  alert(`${student.name}\n\nNo attendance records yet.`);
-                                }
-                              }}
-                              className="p-1.5 md:p-2 rounded-full hover:bg-blue-100 transition-all hover:scale-110"
-                              title="View Summary"
-                            >
-                              <span className="text-blue-600 text-base md:text-lg font-bold">✓</span>
-                            </button>
-
-                            {/* More Options Button */}
-                            <button
-                              onClick={() => {
-                                const options = [
-                                  `Student: ${student.name}`,
-                                  `Email: ${student.email}`,
-                                  `Status: ${status.toUpperCase()}`,
-                                  `---`,
-                                  `Actions:`,
-                                  `• View full history`,
-                                  `• Send reminder`,
-                                  `• Edit details`
-                                ].join('\n');
-                                alert(options);
-                              }}
-                              className="p-1.5 md:p-2 rounded-full hover:bg-gray-100 transition-all hover:scale-110"
-                              title="More Options"
-                            >
-                              <span className="text-gray-600 text-base md:text-lg font-bold">⋮</span>
+                              {status === 'late' && (
+                                <span className="ml-1">✓</span>
+                              )}
                             </button>
                           </div>
                         </td>
