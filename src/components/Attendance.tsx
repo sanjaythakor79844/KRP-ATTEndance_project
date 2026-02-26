@@ -409,7 +409,7 @@ export function Attendance() {
       {/* Quick Stats Cards - Date Selector & Summary */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6">
         {/* Date Selector Card */}
-        <Card className="lg:col-span-1 bg-white shadow-md hover:shadow-lg transition-shadow">
+        <Card className="lg:col-span-1 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200 shadow-md hover:shadow-lg transition-shadow">
           <div className="flex items-center gap-3 mb-3">
             <Calendar className="w-5 h-5 text-blue-600" />
             <span className="font-medium text-gray-900">Select Date</span>
@@ -422,6 +422,11 @@ export function Attendance() {
           />
           <div className="mt-2 text-xs text-gray-600">
             {formatDate(selectedDate)}
+          </div>
+          <div className="mt-3 p-2 bg-white rounded border border-blue-200">
+            <p className="text-xs text-blue-700 font-medium">
+              💡 Select any date to view or edit attendance
+            </p>
           </div>
         </Card>
 
@@ -613,14 +618,18 @@ export function Attendance() {
         </div>
       </Card>
 
-      {/* Mark Today's Attendance Section */}
+      {/* Mark/Edit Attendance Section */}
       <Card className="mb-6 shadow-md">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
           <div>
             <h2 className="text-base md:text-lg font-semibold text-gray-900 flex items-center gap-2">
-              ✏️ Mark Attendance for {formatDate(selectedDate)}
+              ✏️ Mark/Edit Attendance for {formatDate(selectedDate)}
             </h2>
-            <p className="text-sm text-gray-500 mt-1">Click the buttons below to mark student attendance</p>
+            <p className="text-sm text-gray-500 mt-1">
+              {selectedDate === new Date().toISOString().split('T')[0] 
+                ? 'Mark today\'s attendance or edit existing records' 
+                : 'Edit attendance for selected date - Change date above to edit different day'}
+            </p>
           </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             {/* Class Filter */}
