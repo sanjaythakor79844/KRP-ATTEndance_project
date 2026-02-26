@@ -337,20 +337,21 @@ export function Attendance() {
       if (result.success) {
         // Show success confirmation
         showToast(`${statusEmoji} ${student?.name} marked as ${statusText} ✓`, 'success');
-        console.log('✅ Attendance marked successfully, reloading data...');
+        console.log('✅ Attendance marked successfully');
         
-        // DON'T reload - keep optimistic update!
-        // The optimistic update already shows correct data
-        // Reloading causes the revert issue
-        console.log('✅ Keeping optimistic update - no reload needed');
+        // Wait longer for backend to fully process and save
+        console.log('⏳ Waiting 2 seconds for database to update...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
         
-        // Only reload summaries and 5-day view (not current date records)
+        // Now reload to get persisted data
+        console.log('🔄 Reloading data from database...');
         await Promise.all([
+          loadAttendanceForDate(selectedDate),
           loadSummaries(),
           loadLast5DaysAttendance()
         ]);
         
-        console.log('✅ Summaries updated successfully');
+        console.log('✅ Data reloaded from database');
       } else {
         console.error('❌ API returned error:', result.error);
         showToast(`❌ Failed: ${result.error}`, 'error');
