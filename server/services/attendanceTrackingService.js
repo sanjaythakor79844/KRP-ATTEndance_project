@@ -35,7 +35,7 @@ class AttendanceTrackingService {
         date,
         status, // 'present', 'absent', 'late'
         className,
-        timestamp: new Date().toISOString()
+        timestamp: new Date(date + 'T12:00:00').toISOString() // Use the provided date at noon
       };
       
       // Save to MongoDB
