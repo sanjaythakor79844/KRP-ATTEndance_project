@@ -419,8 +419,8 @@ export function Attendance() {
       <div className="mb-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
           <div>
-            <h1 className="text-xl md:text-2xl font-bold text-gray-900">📊 Attendance Monitoring System</h1>
-            <p className="text-sm text-gray-600">Complete attendance tracking and monitoring dashboard</p>
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900">📊 Attendance Management System</h1>
+            <p className="text-sm text-gray-600">Complete attendance tracking with instant visual feedback</p>
           </div>
           <div className="flex flex-wrap gap-3">
             <Button
@@ -475,50 +475,54 @@ export function Attendance() {
         </Card>
 
         {/* Summary Cards */}
-        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200 shadow-md hover:shadow-lg transition-shadow">
+        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200 shadow-lg hover:shadow-xl transition-all">
           <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <CheckCircle className="w-4 h-4 text-green-600" />
-                <p className="text-sm font-medium text-green-700">Present</p>
+            <div className="w-full">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle className="w-5 h-5 text-green-600" />
+                <p className="text-sm font-semibold text-green-700 uppercase tracking-wide">Present</p>
               </div>
-              <p className="text-3xl font-bold text-green-900">{presentCount}</p>
+              <p className="text-4xl font-bold text-green-900">{presentCount}</p>
+              <p className="text-xs text-green-600 mt-1">Students marked present</p>
             </div>
           </div>
         </Card>
 
-        <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200 shadow-md hover:shadow-lg transition-shadow">
+        <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200 shadow-lg hover:shadow-xl transition-all">
           <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <XCircle className="w-4 h-4 text-red-600" />
-                <p className="text-sm font-medium text-red-700">Absent</p>
+            <div className="w-full">
+              <div className="flex items-center gap-2 mb-2">
+                <XCircle className="w-5 h-5 text-red-600" />
+                <p className="text-sm font-semibold text-red-700 uppercase tracking-wide">Absent</p>
               </div>
-              <p className="text-3xl font-bold text-red-900">{absentCount}</p>
+              <p className="text-4xl font-bold text-red-900">{absentCount}</p>
+              <p className="text-xs text-red-600 mt-1">Students marked absent</p>
             </div>
           </div>
         </Card>
 
-        <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200 shadow-md hover:shadow-lg transition-shadow">
+        <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200 shadow-lg hover:shadow-xl transition-all">
           <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <Clock className="w-4 h-4 text-yellow-600" />
-                <p className="text-sm font-medium text-yellow-700">Late</p>
+            <div className="w-full">
+              <div className="flex items-center gap-2 mb-2">
+                <Clock className="w-5 h-5 text-yellow-600" />
+                <p className="text-sm font-semibold text-yellow-700 uppercase tracking-wide">Late</p>
               </div>
-              <p className="text-3xl font-bold text-yellow-900">{lateCount}</p>
+              <p className="text-4xl font-bold text-yellow-900">{lateCount}</p>
+              <p className="text-xs text-yellow-600 mt-1">Students marked late</p>
             </div>
           </div>
         </Card>
 
-        <Card className="bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200 shadow-md hover:shadow-lg transition-shadow">
+        <Card className="bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200 shadow-lg hover:shadow-xl transition-all">
           <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-gray-600">❓</span>
-                <p className="text-sm font-medium text-gray-700">Not Marked</p>
+            <div className="w-full">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-gray-600 text-lg">❓</span>
+                <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Not Marked</p>
               </div>
-              <p className="text-3xl font-bold text-gray-900">{notMarkedCount}</p>
+              <p className="text-4xl font-bold text-gray-900">{notMarkedCount}</p>
+              <p className="text-xs text-gray-600 mt-1">Pending attendance</p>
             </div>
           </div>
         </Card>
