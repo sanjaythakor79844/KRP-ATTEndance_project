@@ -40,10 +40,11 @@ interface AttendanceSummary {
 export function Attendance() {
   // VERSION CHECK - Console log to verify new code is loaded
   useEffect(() => {
-    console.log('🚀 KRP ATTENDANCE v2.2 - COUNT UPDATE FIX VERSION!');
+    console.log('🚀 KRP ATTENDANCE v2.3 - DEBUG VERSION WITH LOGGING!');
     console.log('✅ Features: Toast notifications, Button animations, INSTANT COUNT UPDATES');
-    console.log('📅 Build: 2026-02-26 5:30 PM');
-    console.log('🔧 Fix: Previous date attendance counts now update immediately');
+    console.log('📅 Build: 2026-02-26 6:00 PM');
+    console.log('🔧 Fix: Added detailed logging to debug previous date issue');
+    console.log('🐛 Debug: Check console for API requests and responses');
   }, []);
 
   const [students, setStudents] = useState<Student[]>([]);
@@ -172,14 +173,20 @@ export function Attendance() {
   const loadAttendanceForDate = async (date: string) => {
     setLoading(true);
     try {
+      console.log('📥 Loading attendance for date:', date);
       const response = await fetch(`${API_BASE_URL}/api/attendance/by-date?date=${date}`);
       const data = await response.json();
+      console.log('📥 Attendance data received:', data);
+      
       if (data.success) {
+        console.log(`✅ Loaded ${data.data.length} attendance records for ${date}`);
         setAttendanceRecords(data.data);
         calculateCounts(data.data);
+      } else {
+        console.error('❌ Failed to load attendance:', data.error);
       }
     } catch (error) {
-      console.error('Error loading attendance:', error);
+      console.error('❌ Error loading attendance:', error);
     } finally {
       setLoading(false);
     }
@@ -310,6 +317,8 @@ export function Attendance() {
     calculateCounts(updatedRecords);
     
     try {
+      console.log('📤 Sending attendance mark request:', { studentId, status, date: selectedDate, className: selectedClass });
+      
       const response = await fetch(`${API_BASE_URL}/api/attendance/mark`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -321,24 +330,34 @@ export function Attendance() {
         })
       });
 
+      console.log('📥 Response status:', response.status);
       const result = await response.json();
+      console.log('📥 Response data:', result);
+      
       if (result.success) {
         // Show success confirmation
         showToast(`${statusEmoji} ${student?.name} marked as ${statusText} ✓`, 'success');
+        console.log('✅ Attendance marked successfully, reloading data...');
         
-        // Reload all data to reflect changes (this will correct any optimistic update errors)
+        // Wait a bit for database to update
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Reload all data to reflect changes
         await Promise.all([
           loadAttendanceForDate(selectedDate),
           loadSummaries(),
           loadLast5DaysAttendance()
         ]);
+        
+        console.log('✅ Data reloaded successfully');
       } else {
+        console.error('❌ API returned error:', result.error);
         showToast(`❌ Failed: ${result.error}`, 'error');
         // Revert optimistic update on error
         await loadAttendanceForDate(selectedDate);
       }
     } catch (error) {
-      console.error('Error marking attendance:', error);
+      console.error('❌ Error marking attendance:', error);
       showToast('❌ Failed to mark attendance. Please try again.', 'error');
       // Revert optimistic update on error
       await loadAttendanceForDate(selectedDate);
@@ -685,8 +704,8 @@ export function Attendance() {
 
       {/* Mark/Edit Attendance Section */}
       <Card className="mb-6 shadow-md">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-          <div>
+        <div className="flex flex-col md:flex-row md:items-center md:items-start gap-4 mb-4">
+          <div className="flex-1">
             <h2 className="text-base md:text-lg font-semibold text-gray-900 flex items-center gap-2">
               ✏️ Mark/Edit Attendance for {formatDate(selectedDate)}
             </h2>
@@ -695,6 +714,26 @@ export function Attendance() {
                 ? 'Mark today\'s attendance or edit existing records' 
                 : 'Edit attendance for selected date - Change date above to edit different day'}
             </p>
+            
+            {/* INLINE COUNT DISPLAY - Always visible */}
+            <div className="flex flex-wrap gap-3 mt-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-50 border border-green-200 rounded-lg">
+                <CheckCircle className="w-4 h-4 text-green-600" />
+                <span className="text-sm font-semibold text-green-700">Present: {presentCount}</span>
+              </div>
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-lg">
+                <XCircle className="w-4 h-4 text-red-600" />
+                <span className="text-sm font-semibold text-red-700">Absent: {absentCount}</span>
+              </div>
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <Clock className="w-4 h-4 text-yellow-600" />
+                <span className="text-sm font-semibold text-yellow-700">Late: {lateCount}</span>
+              </div>
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg">
+                <span className="text-gray-600 text-sm">❓</span>
+                <span className="text-sm font-semibold text-gray-700">Not Marked: {notMarkedCount}</span>
+              </div>
+            </div>
           </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             {/* Class Filter */}
