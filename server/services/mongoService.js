@@ -471,11 +471,21 @@ class MongoService {
             const attendance = {
                 ...attendanceData,
                 id: Date.now().toString(),
-                timestamp: new Date().toISOString()
+                // CRITICAL FIX: Don't overwrite timestamp if already provided!
+                // This was causing previous date attendance to save with current timestamp
+                timestamp: attendanceData.timestamp || new Date().toISOString()
             };
+            
+            console.log('💾 mongoService.addAttendance:', {
+                providedTimestamp: attendanceData.timestamp,
+                finalTimestamp: attendance.timestamp,
+                date: attendanceData.date,
+                studentName: attendanceData.studentName
+            });
             
             if (this.isConnected && this.db) {
                 const result = await this.db.collection('attendance').insertOne(attendance);
+                console.log('✅ Saved to MongoDB with timestamp:', attendance.timestamp);
                 return {
                     success: true,
                     data: { ...attendance, _id: result.insertedId.toString() }

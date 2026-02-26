@@ -1,4 +1,6 @@
-v2.3.0-DEBUG-LOGGING
-Build Time: 2026-02-26 6:00 PM
-Features: Instant feedback, Toast notifications, Button animations, COUNT UPDATE FIX, DEBUG LOGGING
-Status: PRODUCTION READY - WITH DETAILED CONSOLE LOGGING FOR DEBUGGING
+v2.7.0 - TIMESTAMP FIX - Previous Date Persistence Fixed
+Build Time: 2026-02-26 7:30 PM
+Critical Fix: mongoService.addAttendance() no longer overwrites custom timestamps
+Root Cause: timestamp was being overwritten with current time, breaking previous date queries
+Solution: timestamp = attendanceData.timestamp || new Date().toISOString()
+Status: PRODUCTION READY - PREVIOUS DATE ATTENDANCE WILL NOW PERSIST!

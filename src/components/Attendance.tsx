@@ -40,11 +40,12 @@ interface AttendanceSummary {
 export function Attendance() {
   // VERSION CHECK - Console log to verify new code is loaded
   useEffect(() => {
-    console.log('🚀 KRP ATTENDANCE v2.3 - DEBUG VERSION WITH LOGGING!');
-    console.log('✅ Features: Toast notifications, Button animations, INSTANT COUNT UPDATES');
-    console.log('📅 Build: 2026-02-26 6:00 PM');
-    console.log('🔧 Fix: Added detailed logging to debug previous date issue');
-    console.log('🐛 Debug: Check console for API requests and responses');
+    console.log('🚀 KRP ATTENDANCE v2.7.0 - TIMESTAMP FIX!');
+    console.log('✅ CRITICAL FIX: mongoService no longer overwrites custom timestamps');
+    console.log('✅ Previous date attendance will now persist correctly');
+    console.log('📅 Build: 2026-02-26 7:30 PM');
+    console.log('🔧 Fix: timestamp = attendanceData.timestamp || new Date()');
+    console.log('🎯 Root cause: mongoService was overwriting the carefully crafted date timestamp');
   }, []);
 
   const [students, setStudents] = useState<Student[]>([]);
