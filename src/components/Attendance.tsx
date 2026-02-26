@@ -65,6 +65,21 @@ export function Attendance() {
   const [absentCount, setAbsentCount] = useState(0);
   const [lateCount, setLateCount] = useState(0);
   const [notMarkedCount, setNotMarkedCount] = useState(0);
+  
+  // Toast notification state
+  const [toast, setToast] = useState<{show: boolean; message: string; type: 'success' | 'error'}>({
+    show: false,
+    message: '',
+    type: 'success'
+  });
+
+  // Show toast notification
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast({ show: false, message: '', type: 'success' });
+    }, 3000);
+  };
 
   useEffect(() => {
     loadStudents();
@@ -266,8 +281,10 @@ export function Attendance() {
 
       const result = await response.json();
       if (result.success) {
-        // Show success message
-        console.log(`✅ ${student?.name} marked as ${status}`);
+        // Show success toast
+        const statusEmoji = status === 'present' ? '✅' : status === 'absent' ? '❌' : '⏰';
+        const statusText = status === 'present' ? 'Present' : status === 'absent' ? 'Absent' : 'Late';
+        showToast(`${statusEmoji} ${student?.name} marked as ${statusText}`, 'success');
         
         // Reload all data to reflect changes
         await Promise.all([
@@ -276,11 +293,11 @@ export function Attendance() {
           loadLast5DaysAttendance()
         ]);
       } else {
-        alert(`❌ Failed: ${result.error}`);
+        showToast(`Failed: ${result.error}`, 'error');
       }
     } catch (error) {
       console.error('Error marking attendance:', error);
-      alert('❌ Failed to mark attendance. Please try again.');
+      showToast('Failed to mark attendance. Please try again.', 'error');
     } finally {
       setMarking(null);
     }
@@ -1013,6 +1030,22 @@ export function Attendance() {
           </p>
         </div>
       </Card>
+
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className="fixed bottom-4 right-4 z-50 animate-slide-up">
+          <div className={`px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3 ${
+            toast.type === 'success' 
+              ? 'bg-green-600 text-white' 
+              : 'bg-red-600 text-white'
+          }`}>
+            <span className="text-2xl">
+              {toast.type === 'success' ? '✅' : '❌'}
+            </span>
+            <p className="font-medium text-lg">{toast.message}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
