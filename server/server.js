@@ -1285,12 +1285,29 @@ app.get('/api/attendance/by-date', async (req, res) => {
     const attendanceRecords = await mongoService.getAttendance();
     console.log(`📊 Total records in database: ${attendanceRecords.length}`);
     
-    // Filter by date
+    // Filter by date - check both timestamp and date field
     const dateRecords = attendanceRecords.filter(record => {
-      const recordDate = new Date(record.timestamp).toISOString().split('T')[0];
+      // Try timestamp first
+      let recordDate = null;
+      if (record.timestamp) {
+        try {
+          recordDate = new Date(record.timestamp).toISOString().split('T')[0];
+        } catch (e) {
+          console.log(`⚠️ Invalid timestamp for record:`, record);
+        }
+      }
+      
+      // Fallback to date field if timestamp doesn't work
+      if (!recordDate && record.date) {
+        recordDate = record.date.split('T')[0]; // Handle both "2026-02-19" and "2026-02-19T..."
+      }
+      
       const matches = recordDate === targetDate;
       if (matches) {
-        console.log(`✅ Match found: ${record.studentName} - ${record.status} - ${record.timestamp} -> ${recordDate}`);
+        console.log(`✅ Match found: ${record.studentName} - ${record.status} - timestamp:${record.timestamp} date:${record.date} -> ${recordDate}`);
+      } else if (record.date && record.date.includes(targetDate)) {
+        // Debug: show near-matches
+        console.log(`⚠️ Near match (not exact): ${record.studentName} - date:${record.date} timestamp:${record.timestamp} -> extracted:${recordDate} vs target:${targetDate}`);
       }
       return matches;
     });
