@@ -38,6 +38,13 @@ interface AttendanceSummary {
 }
 
 export function Attendance() {
+  // VERSION CHECK - Console log to verify new code is loaded
+  useEffect(() => {
+    console.log('🚀 KRP ATTENDANCE v2.0 - INSTANT FEEDBACK VERSION LOADED!');
+    console.log('✅ Features: Toast notifications, Button animations, Auto cache-busting');
+    console.log('📅 Build: 2026-02-26 10:30 AM');
+  }, []);
+
   const [students, setStudents] = useState<Student[]>([]);
   const [managers, setManagers] = useState<Manager[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
