@@ -282,22 +282,26 @@ export function Attendance() {
     // Show immediate feedback
     showToast(`⏳ Marking ${student?.name} as ${statusText}...`, 'success');
     
-    // OPTIMISTIC UPDATE - Update counts immediately for instant feedback
+    // OPTIMISTIC UPDATE - Update attendance records immediately
     const existingRecord = attendanceRecords.find(r => r.studentId === studentId);
-    if (existingRecord) {
-      // Update existing record
-      if (existingRecord.status === 'present') setPresentCount(prev => prev - 1);
-      if (existingRecord.status === 'absent') setAbsentCount(prev => prev - 1);
-      if (existingRecord.status === 'late') setLateCount(prev => prev - 1);
-    } else {
-      // New record
-      setNotMarkedCount(prev => prev - 1);
-    }
     
-    // Add new status
-    if (status === 'present') setPresentCount(prev => prev + 1);
-    if (status === 'absent') setAbsentCount(prev => prev + 1);
-    if (status === 'late') setLateCount(prev => prev + 1);
+    // Create optimistic record
+    const optimisticRecord: AttendanceRecord = {
+      studentId,
+      status,
+      timestamp: new Date().toISOString()
+    };
+    
+    // Update records immediately
+    if (existingRecord) {
+      // Replace existing
+      setAttendanceRecords(prev => prev.map(r => 
+        r.studentId === studentId ? optimisticRecord : r
+      ));
+    } else {
+      // Add new
+      setAttendanceRecords(prev => [...prev, optimisticRecord]);
+    }
     
     try {
       const response = await fetch(`${API_BASE_URL}/api/attendance/mark`, {
