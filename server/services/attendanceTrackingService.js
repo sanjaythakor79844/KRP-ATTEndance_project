@@ -35,8 +35,17 @@ class AttendanceTrackingService {
         date,
         status, // 'present', 'absent', 'late'
         className,
-        timestamp: new Date(date + 'T12:00:00').toISOString() // Use the provided date at noon
+        timestamp: new Date(date + 'T12:00:00.000Z').toISOString() // Explicit UTC at noon
       };
+      
+      console.log('💾 Saving attendance:', {
+        studentId,
+        studentName,
+        date,
+        status,
+        timestamp: record.timestamp,
+        extractedDate: new Date(record.timestamp).toISOString().split('T')[0]
+      });
       
       // Save to MongoDB
       const result = await mongoService.addAttendance(record);
@@ -45,7 +54,7 @@ class AttendanceTrackingService {
         throw new Error(result.error || 'Failed to save attendance');
       }
 
-      console.log(`✅ Attendance marked: ${studentName} - ${status}`);
+      console.log(`✅ Attendance saved to database: ${studentName} - ${status} on ${date}`);
       
       // Send notification email to student (optional, don't fail if it doesn't work)
       if (studentEmail && gmailService.isConnected()) {

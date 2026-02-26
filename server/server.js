@@ -1279,14 +1279,23 @@ app.get('/api/attendance/by-date', async (req, res) => {
       targetDate = date;
     }
     
+    console.log('🔍 Querying attendance for date:', targetDate);
+    
     // Get all attendance records
     const attendanceRecords = await mongoService.getAttendance();
+    console.log(`📊 Total records in database: ${attendanceRecords.length}`);
     
     // Filter by date
     const dateRecords = attendanceRecords.filter(record => {
       const recordDate = new Date(record.timestamp).toISOString().split('T')[0];
-      return recordDate === targetDate;
+      const matches = recordDate === targetDate;
+      if (matches) {
+        console.log(`✅ Match found: ${record.studentName} - ${record.status} - ${record.timestamp} -> ${recordDate}`);
+      }
+      return matches;
     });
+    
+    console.log(`🎯 Found ${dateRecords.length} records for ${targetDate}`);
     
     // Remove duplicates - keep only the latest record for each student
     const uniqueRecords = new Map();
