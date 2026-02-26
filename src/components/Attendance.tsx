@@ -40,9 +40,10 @@ interface AttendanceSummary {
 export function Attendance() {
   // VERSION CHECK - Console log to verify new code is loaded
   useEffect(() => {
-    console.log('🚀 KRP ATTENDANCE v2.0 - INSTANT FEEDBACK VERSION LOADED!');
-    console.log('✅ Features: Toast notifications, Button animations, Auto cache-busting');
-    console.log('📅 Build: 2026-02-26 10:30 AM');
+    console.log('🚀 KRP ATTENDANCE v2.2 - COUNT UPDATE FIX VERSION!');
+    console.log('✅ Features: Toast notifications, Button animations, INSTANT COUNT UPDATES');
+    console.log('📅 Build: 2026-02-26 5:30 PM');
+    console.log('🔧 Fix: Previous date attendance counts now update immediately');
   }, []);
 
   const [students, setStudents] = useState<Student[]>([]);
@@ -292,16 +293,21 @@ export function Attendance() {
       timestamp: new Date().toISOString()
     };
     
-    // Update records immediately
+    // Update records immediately and recalculate counts
+    let updatedRecords: AttendanceRecord[];
     if (existingRecord) {
       // Replace existing
-      setAttendanceRecords(prev => prev.map(r => 
+      updatedRecords = attendanceRecords.map(r => 
         r.studentId === studentId ? optimisticRecord : r
-      ));
+      );
     } else {
       // Add new
-      setAttendanceRecords(prev => [...prev, optimisticRecord]);
+      updatedRecords = [...attendanceRecords, optimisticRecord];
     }
+    
+    // Update state and recalculate counts immediately
+    setAttendanceRecords(updatedRecords);
+    calculateCounts(updatedRecords);
     
     try {
       const response = await fetch(`${API_BASE_URL}/api/attendance/mark`, {
