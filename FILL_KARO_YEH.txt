@@ -1,0 +1,53 @@
+═══════════════════════════════════════════════════════════
+    VERCEL DEPLOYMENT - SIRF YEH 3 CHEEZEIN FILL KARO
+═══════════════════════════════════════════════════════════
+
+📍 STEP 1: ROOT DIRECTORY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Root Directory ke saamne "Edit" button click karo
+
+Type exactly (space hai naam mein):
+┌─────────────────────────────────────────┐
+│ KRP Admin Dashboard Design              │
+└─────────────────────────────────────────┘
+
+
+📍 STEP 2: ENVIRONMENT VARIABLE DELETE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EXAMPLE_NAME variable ke saamne minus (−) button click karo
+Delete kar do
+
+
+📍 STEP 3: NEW ENVIRONMENT VARIABLE ADD
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"+ Add More" button click karo
+
+Left Box (Key):
+┌─────────────────────────────────────────┐
+│ VITE_API_URL                            │
+└─────────────────────────────────────────┘
+
+Right Box (Value):
+┌─────────────────────────────────────────┐
+│ http://localhost:5000                   │
+└─────────────────────────────────────────┘
+
+
+📍 STEP 4: DEPLOY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Bottom mein "Deploy" button click karo!
+
+
+═══════════════════════════════════════════════════════════
+                    ✅ BAS! HO GAYA!
+═══════════════════════════════════════════════════════════
+
+Baki sab already correct hai:
+✓ Repository: sanjaythakor79844/KRP-ATTEndance_project
+✓ Branch: main
+✓ Framework: Vite
+✓ Build Command: npm run build
+✓ Output Directory: dist
+✓ Install Command: npm install
+
+═══════════════════════════════════════════════════════════
