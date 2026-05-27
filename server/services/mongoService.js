@@ -323,34 +323,39 @@ class MongoService {
         }
     }
 
-    buildPastStudentQuery(searchTerm = '') {
-        const baseQuery = { status: { $in: ['deactivated', 'inactive'] } };
-        if (!searchTerm || !searchTerm.trim()) {
-            return baseQuery;
+    buildPastStudentQuery(searchTerm = '', batch = '') {
+        const conditions = [{ status: { $in: ['deactivated', 'inactive'] } }];
+
+        if (batch && batch !== 'all') {
+            conditions.push({ batch });
         }
 
-        const term = searchTerm.trim();
-        const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const orConditions = [
-            { name: { $regex: escaped, $options: 'i' } },
-            { email: { $regex: escaped, $options: 'i' } },
-            { phone: { $regex: escaped, $options: 'i' } },
-            { id: { $regex: escaped, $options: 'i' } },
-        ];
+        if (searchTerm && searchTerm.trim()) {
+            const term = searchTerm.trim();
+            const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const orConditions = [
+                { name: { $regex: escaped, $options: 'i' } },
+                { email: { $regex: escaped, $options: 'i' } },
+                { phone: { $regex: escaped, $options: 'i' } },
+                { id: { $regex: escaped, $options: 'i' } },
+            ];
 
-        const digitsOnly = term.replace(/\D/g, '');
-        if (digitsOnly.length >= 4) {
-            orConditions.push({ phone: { $regex: digitsOnly.slice(-4) + '$' } });
+            const digitsOnly = term.replace(/\D/g, '');
+            if (digitsOnly.length >= 4) {
+                orConditions.push({ phone: { $regex: digitsOnly.slice(-4) + '$' } });
+            }
+            conditions.push({ $or: orConditions });
         }
 
-        return { ...baseQuery, $or: orConditions };
+        return conditions.length === 1 ? conditions[0] : { $and: conditions };
     }
 
-    filterPastStudentsFallback(searchTerm = '') {
+    filterPastStudentsFallback(searchTerm = '', batch = '') {
         const term = searchTerm.trim().toLowerCase();
         const digitsOnly = term.replace(/\D/g, '');
         return this.fallbackData.students.filter((s) => {
             if (!['deactivated', 'inactive'].includes(s.status)) return false;
+            if (batch && batch !== 'all' && (s.batch || '—') !== batch) return false;
             if (!term) return true;
             const phone = (s.phone || '').toLowerCase();
             return (
@@ -385,12 +390,12 @@ class MongoService {
         }
     }
 
-    async getPastStudentsPaginated({ page = 1, limit = 25, search = '' } = {}) {
+    async getPastStudentsPaginated({ page = 1, limit = 25, search = '', batch = '' } = {}) {
         try {
             const safePage = Math.max(1, parseInt(page, 10) || 1);
             const safeLimit = Math.min(100, Math.max(1, parseInt(limit, 10) || 25));
             const skip = (safePage - 1) * safeLimit;
-            const query = this.buildPastStudentQuery(search);
+            const query = this.buildPastStudentQuery(search, batch);
 
             if (this.isConnected && this.db) {
                 const collection = this.db.collection('students');
@@ -418,7 +423,7 @@ class MongoService {
                 };
             }
 
-            const filtered = this.filterPastStudentsFallback(search)
+            const filtered = this.filterPastStudentsFallback(search, batch)
                 .sort((a, b) => new Date(b.deactivatedAt || 0) - new Date(a.deactivatedAt || 0));
             const total = filtered.length;
             const students = filtered.slice(skip, skip + safeLimit);
@@ -449,6 +454,17 @@ class MongoService {
             search: searchTerm,
         });
         return students;
+    }
+
+    async getPastStudentBatches() {
+        try {
+            const students = await this.getPastStudents();
+            const batches = [...new Set(students.map((s) => s.batch || '—'))].sort();
+            return batches;
+        } catch (error) {
+            console.error('❌ Error fetching past student batches:', error);
+            return [];
+        }
     }
 
     async deleteStudent(id) {

@@ -229,6 +229,41 @@ class PastRecordsService {
     };
   }
 
+  buildStatsFromMonths(monthRows, totalsMeta = {}) {
+    const monthlySummary = monthRows.map((m) => this.mapMonthToClient(m));
+    const allDaily = monthRows.flatMap((m) => m.dailyRecords || []);
+    const totalPresent = allDaily.filter((d) => d.status === 'present').length;
+    const totalLate = allDaily.filter((d) => d.status === 'late').length;
+    const totalAbsent = allDaily.filter((d) => d.status === 'absent').length;
+    const totalClasses = totalsMeta.totalClasses ?? monthRows.reduce((s, m) => s + m.totalClasses, 0);
+    const totalAttended = totalsMeta.classesAttended ?? monthRows.reduce((s, m) => s + m.classesAttended, 0);
+    const totalPercentage =
+      totalsMeta.attendancePercentage ??
+      (totalClasses > 0 ? Math.round((totalAttended / totalClasses) * 1000) / 10 : 0);
+    const avgMonthlyPercentage =
+      monthlySummary.length > 0
+        ? Math.round(
+            (monthlySummary.reduce((sum, m) => sum + m.percentage, 0) / monthlySummary.length) * 10
+          ) / 10
+        : 0;
+
+    return {
+      firstMonth: totalsMeta.firstMonthLabel || (monthRows[0] ? monthRows[0].monthLabel : 'N/A'),
+      lastMonth:
+        totalsMeta.lastMonthLabel ||
+        (monthRows.length ? monthRows[monthRows.length - 1].monthLabel : 'N/A'),
+      totalClasses,
+      totalAttended,
+      totalPresent,
+      totalAbsent,
+      totalLate,
+      totalPercentage,
+      avgMonthlyPercentage,
+      status: totalsMeta.status || this.getAttendanceStatusLabel(totalPercentage),
+      monthCount: monthRows.length,
+    };
+  }
+
   async getClientAttendanceSummary(studentId, options = {}) {
     const student = await mongoService.getStudentById(studentId);
     if (!student) return null;
@@ -242,6 +277,16 @@ class PastRecordsService {
 
     const termSummaryData = await this.getMonthlySummary(studentId, { filterMode: 'term' });
 
+    const totalTerm = this.buildTotalTerm(termSummaryData.months, termSummaryData.termSummary);
+    const selectedRange =
+      filterMode === 'term'
+        ? totalTerm
+        : this.buildStatsFromMonths(summary.months, {
+            ...summary.rangeTotals,
+            firstMonthLabel: summary.months[0]?.monthLabel,
+            lastMonthLabel: summary.months[summary.months.length - 1]?.monthLabel,
+          });
+
     return {
       student: {
         id: student.id,
@@ -251,12 +296,117 @@ class PastRecordsService {
         deactivatedAt: student.deactivatedAt,
       },
       monthlySummary: summary.months.map((m) => this.mapMonthToClient(m)),
-      totalTerm: this.buildTotalTerm(termSummaryData.months, termSummaryData.termSummary),
+      totalTerm,
+      selectedRange,
+      filterMode,
+      filterLabel:
+        filterMode === 'term'
+          ? `Full Term (${totalTerm.firstMonth} — ${totalTerm.lastMonth})`
+          : filterMode === 'range'
+            ? `Range (${selectedRange.firstMonth} — ${selectedRange.lastMonth})`
+            : 'Last 6 months',
       months: summary.months,
       rangeTotals: summary.rangeTotals,
       termSummary: summary.termSummary,
       availableMonths: summary.availableMonths,
       readOnly: true,
+    };
+  }
+
+  async getBatchAttendanceSummary(batch, options = {}) {
+    const filterMode = options.filterMode || 'term';
+    const allPast = await mongoService.getPastStudents();
+    const batchStudents =
+      batch && batch !== 'all'
+        ? allPast.filter((s) => (s.batch || '—') === batch)
+        : allPast;
+
+    const studentStats = [];
+    let totalClasses = 0;
+    let totalAttended = 0;
+    let totalAbsent = 0;
+    let totalPresent = 0;
+    let totalLate = 0;
+    const percentageSum = [];
+    let periodFrom = 'N/A';
+    let periodTo = 'N/A';
+
+    for (const student of batchStudents) {
+      const summary = await this.getMonthlySummary(student.id, {
+        fromMonth: options.fromMonth || null,
+        toMonth: options.toMonth || null,
+        filterMode,
+      });
+
+      let rowStats;
+      if (filterMode === 'term') {
+        const termData = await this.getMonthlySummary(student.id, { filterMode: 'term' });
+        rowStats = this.buildTotalTerm(termData.months, termData.termSummary);
+        if (termData.months.length && periodFrom === 'N/A') {
+          periodFrom = termData.termSummary.firstMonthLabel;
+          periodTo = termData.termSummary.lastMonthLabel;
+        }
+      } else {
+        rowStats = this.buildStatsFromMonths(summary.months, {
+          ...summary.rangeTotals,
+          firstMonthLabel: summary.months[0]?.monthLabel,
+          lastMonthLabel: summary.months[summary.months.length - 1]?.monthLabel,
+        });
+        if (summary.months.length && periodFrom === 'N/A') {
+          periodFrom = summary.months[0].monthLabel;
+          periodTo = summary.months[summary.months.length - 1].monthLabel;
+        }
+      }
+
+      studentStats.push({
+        id: student.id,
+        name: student.name,
+        email: student.email || '',
+        batch: student.batch || '—',
+        totalClasses: rowStats.totalClasses,
+        totalAttended: rowStats.totalAttended,
+        totalPercentage: rowStats.totalPercentage,
+        avgMonthlyPercentage: rowStats.avgMonthlyPercentage,
+        status: rowStats.status,
+      });
+
+      totalClasses += rowStats.totalClasses;
+      totalAttended += rowStats.totalAttended;
+      totalAbsent += rowStats.totalAbsent;
+      totalPresent += rowStats.totalPresent;
+      totalLate += rowStats.totalLate;
+      if (rowStats.totalClasses > 0) percentageSum.push(rowStats.totalPercentage);
+    }
+
+    const batchPercentage =
+      totalClasses > 0 ? Math.round((totalAttended / totalClasses) * 1000) / 10 : 0;
+    const avgStudentPercentage =
+      percentageSum.length > 0
+        ? Math.round((percentageSum.reduce((a, b) => a + b, 0) / percentageSum.length) * 10) / 10
+        : 0;
+
+    return {
+      batch: batch || 'all',
+      studentCount: batchStudents.length,
+      filterMode,
+      filterLabel:
+        filterMode === 'term'
+          ? 'Full Term (first month to last month)'
+          : options.fromMonth || options.toMonth
+            ? `Range ${options.fromMonth || '…'} — ${options.toMonth || '…'}`
+            : 'Last 6 months per student',
+      period: { from: periodFrom, to: periodTo },
+      aggregate: {
+        totalClasses,
+        totalAttended,
+        totalPresent,
+        totalAbsent,
+        totalLate,
+        totalPercentage: batchPercentage,
+        avgStudentPercentage,
+        status: this.getAttendanceStatusLabel(batchPercentage),
+      },
+      students: studentStats.sort((a, b) => b.totalPercentage - a.totalPercentage),
     };
   }
 

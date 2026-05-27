@@ -43,6 +43,35 @@ interface AttendanceSummary {
   student: PastStudent;
   monthlySummary: MonthlyAttendance[];
   totalTerm: TotalTermStats;
+  selectedRange?: TotalTermStats;
+  filterMode?: string;
+  filterLabel?: string;
+}
+
+interface BatchStudentStat {
+  id: string;
+  name: string;
+  totalClasses: number;
+  totalAttended: number;
+  totalPercentage: number;
+  avgMonthlyPercentage: number;
+  status: string;
+}
+
+interface BatchSummary {
+  batch: string;
+  studentCount: number;
+  filterMode: string;
+  filterLabel: string;
+  period: { from: string; to: string };
+  aggregate: {
+    totalClasses: number;
+    totalAttended: number;
+    totalPercentage: number;
+    avgStudentPercentage: number;
+    status: string;
+  };
+  students: BatchStudentStat[];
 }
 
 const EMPTY_TOTAL_TERM: TotalTermStats = {
@@ -95,7 +124,16 @@ function normalizeSummary(raw: Record<string, unknown> | null): AttendanceSummar
       }
     : { ...EMPTY_TOTAL_TERM };
 
-  return { student, monthlySummary, totalTerm };
+  const selectedRange = (raw.selectedRange as TotalTermStats) || totalTerm;
+
+  return {
+    student,
+    monthlySummary,
+    totalTerm,
+    selectedRange,
+    filterMode: String(raw.filterMode || 'default'),
+    filterLabel: String(raw.filterLabel || ''),
+  };
 }
 
 export function PastRecords() {
@@ -107,34 +145,86 @@ export function PastRecords() {
   const [attendanceSummary, setAttendanceSummary] = useState<AttendanceSummary | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
-  
-  // Filter states
+  const [batches, setBatches] = useState<string[]>([]);
+  const [batchFilter, setBatchFilter] = useState('all');
+  const [batchSummary, setBatchSummary] = useState<BatchSummary | null>(null);
+  const [loadingBatchSummary, setLoadingBatchSummary] = useState(false);
+
+  // Student detail filter states
   const [fromMonth, setFromMonth] = useState('');
   const [toMonth, setToMonth] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
+  const [filterMode, setFilterMode] = useState<'default' | 'range' | 'term'>('term');
+  const [showFilters, setShowFilters] = useState(true);
+
+  // List-level filters (batch + range)
+  const [listFromMonth, setListFromMonth] = useState('');
+  const [listToMonth, setListToMonth] = useState('');
+  const [listFilterMode, setListFilterMode] = useState<'term' | 'range'>('term');
 
   useEffect(() => {
     loadPastStudents();
+    loadBatches();
   }, []);
 
   useEffect(() => {
-    if (searchTerm.trim() === '') {
-      setFilteredStudents(students);
-    } else {
-      const term = searchTerm.toLowerCase();
-      const filtered = students.filter(s =>
-        s.name.toLowerCase().includes(term) ||
-        s.email.toLowerCase().includes(term) ||
-        s.batch.toLowerCase().includes(term)
-      );
-      setFilteredStudents(filtered);
+    loadPastStudents();
+  }, [batchFilter]);
+
+  useEffect(() => {
+    let list = students;
+    if (batchFilter && batchFilter !== 'all') {
+      list = list.filter((s) => (s.batch || '—') === batchFilter);
     }
-  }, [searchTerm, students]);
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      list = list.filter(
+        (s) =>
+          s.name.toLowerCase().includes(term) ||
+          s.email.toLowerCase().includes(term) ||
+          (s.batch || '').toLowerCase().includes(term)
+      );
+    }
+    setFilteredStudents(list);
+  }, [searchTerm, students, batchFilter]);
+
+  const loadBatches = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/records/batches`);
+      const data = await response.json();
+      if (data.success) setBatches(data.data || []);
+    } catch (error) {
+      console.error('Error loading batches:', error);
+    }
+  };
+
+  const loadBatchSummary = async () => {
+    setLoadingBatchSummary(true);
+    try {
+      const params = new URLSearchParams();
+      params.set('batch', batchFilter);
+      params.set('filter', listFilterMode);
+      if (listFromMonth) params.set('from_month', listFromMonth);
+      if (listToMonth) params.set('to_month', listToMonth);
+
+      const response = await fetch(`${API_BASE_URL}/api/records/batch-summary?${params}`);
+      const data = await response.json();
+      if (data.success) setBatchSummary(data.data);
+      else setBatchSummary(null);
+    } catch (error) {
+      console.error('Error loading batch summary:', error);
+      setBatchSummary(null);
+    } finally {
+      setLoadingBatchSummary(false);
+    }
+  };
 
   const loadPastStudents = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/records/students`);
+      const params = new URLSearchParams();
+      if (batchFilter && batchFilter !== 'all') params.set('batch', batchFilter);
+      params.set('limit', '100');
+      const response = await fetch(`${API_BASE_URL}/api/records/students?${params}`);
       if (!response.ok) {
         console.error('Past students API error:', response.status);
         setStudents([]);
@@ -153,14 +243,20 @@ export function PastRecords() {
     }
   };
 
-  const loadAttendanceSummary = async (studentId: string) => {
+  const loadAttendanceSummary = async (
+    studentId: string,
+    mode: 'default' | 'range' | 'term' = filterMode
+  ) => {
     setLoadingSummary(true);
     setSummaryError(null);
     try {
       let url = `${API_BASE_URL}/api/records/students/${studentId}/attendance/summary`;
       const params = new URLSearchParams();
-      if (fromMonth) params.append('from_month', fromMonth);
-      if (toMonth) params.append('to_month', toMonth);
+      params.set('filter', mode);
+      if (mode === 'range') {
+        if (fromMonth) params.append('from_month', fromMonth);
+        if (toMonth) params.append('to_month', toMonth);
+      }
       if (params.toString()) url += `?${params.toString()}`;
 
       const response = await fetch(url);
@@ -195,7 +291,10 @@ export function PastRecords() {
 
   const handleViewAttendance = (student: PastStudent) => {
     setSelectedStudent(student);
-    loadAttendanceSummary(student.id);
+    setFilterMode('term');
+    setFromMonth('');
+    setToMonth('');
+    loadAttendanceSummary(student.id, 'term');
   };
 
   const handleBack = () => {
@@ -204,21 +303,44 @@ export function PastRecords() {
     setSummaryError(null);
     setFromMonth('');
     setToMonth('');
-    setShowFilters(false);
+    setFilterMode('term');
+    setShowFilters(true);
   };
 
   const handleApplyFilter = () => {
     if (selectedStudent) {
-      loadAttendanceSummary(selectedStudent.id);
+      const mode = fromMonth || toMonth ? 'range' : 'default';
+      setFilterMode(mode);
+      loadAttendanceSummary(selectedStudent.id, mode);
     }
+  };
+
+  const handleFullTermFilter = () => {
+    setFromMonth('');
+    setToMonth('');
+    setFilterMode('term');
+    if (selectedStudent) loadAttendanceSummary(selectedStudent.id, 'term');
   };
 
   const handleClearFilter = () => {
     setFromMonth('');
     setToMonth('');
-    if (selectedStudent) {
-      loadAttendanceSummary(selectedStudent.id);
-    }
+    setFilterMode('term');
+    if (selectedStudent) loadAttendanceSummary(selectedStudent.id, 'term');
+  };
+
+  const handleApplyListFilters = () => {
+    loadPastStudents();
+    loadBatchSummary();
+  };
+
+  const handleClearListFilters = () => {
+    setListFromMonth('');
+    setListToMonth('');
+    setListFilterMode('term');
+    setBatchFilter('all');
+    setBatchSummary(null);
+    loadPastStudents();
   };
 
   const getPercentageColor = (percentage: number) => {
@@ -271,6 +393,130 @@ export function PastRecords() {
           </div>
         </Card>
 
+        {/* Batch & Range Filters */}
+        <Card className="mb-6">
+          <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <Filter className="w-4 h-4" />
+            Batch &amp; Date Range Filters
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Batch</label>
+              <select
+                value={batchFilter}
+                onChange={(e) => setBatchFilter(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              >
+                <option value="all">All Batches</option>
+                {batches.map((b) => (
+                  <option key={b} value={b}>
+                    Batch {b}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">From Month</label>
+              <input
+                type="month"
+                value={listFromMonth}
+                onChange={(e) => setListFromMonth(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">To Month</label>
+              <input
+                type="month"
+                value={listToMonth}
+                onChange={(e) => setListToMonth(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              />
+            </div>
+            <div className="flex flex-col justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setListFilterMode('term')}
+                className={`py-2 rounded-lg text-sm font-medium border ${
+                  listFilterMode === 'term'
+                    ? 'bg-purple-600 text-white border-purple-600'
+                    : 'bg-white text-gray-700 border-gray-300'
+                }`}
+              >
+                Full Term
+              </button>
+              <button
+                type="button"
+                onClick={() => setListFilterMode('range')}
+                className={`py-2 rounded-lg text-sm font-medium border ${
+                  listFilterMode === 'range'
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-white text-gray-700 border-gray-300'
+                }`}
+              >
+                Custom Range
+              </button>
+            </div>
+            <div className="flex flex-col justify-end gap-2">
+              <Button onClick={handleApplyListFilters} className="w-full justify-center text-sm">
+                Apply
+              </Button>
+              <Button variant="secondary" onClick={handleClearListFilters} className="w-full justify-center text-sm">
+                Clear
+              </Button>
+            </div>
+          </div>
+        </Card>
+
+        {/* Batch aggregate summary */}
+        {batchSummary && (
+          <Card className="mb-6 bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200">
+            {loadingBatchSummary ? (
+              <p className="text-center text-gray-500 py-4">Loading batch statistics...</p>
+            ) : batchSummary ? (
+              <>
+                <h3 className="font-bold text-gray-900 mb-1">
+                  Batch {batchSummary.batch} — {batchSummary.filterLabel}
+                </h3>
+                <p className="text-xs text-gray-600 mb-4">
+                  {batchSummary.studentCount} students • Period: {batchSummary.period.from} —{' '}
+                  {batchSummary.period.to}
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="bg-white rounded-lg p-3 shadow-sm">
+                    <p className="text-xs text-gray-500">Total Classes (Batch)</p>
+                    <p className="text-2xl font-bold">{batchSummary.aggregate.totalClasses}</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 shadow-sm">
+                    <p className="text-xs text-gray-500">Total Attended</p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {batchSummary.aggregate.totalAttended}
+                    </p>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 shadow-sm">
+                    <p className="text-xs text-gray-500">Batch Attendance %</p>
+                    <p
+                      className={`text-2xl font-bold ${getPercentageColor(batchSummary.aggregate.totalPercentage)} px-2 rounded`}
+                    >
+                      {batchSummary.aggregate.totalPercentage}%
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">Weighted (attended ÷ total)</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 shadow-sm">
+                    <p className="text-xs text-gray-500">Avg Student %</p>
+                    <p
+                      className={`text-2xl font-bold ${getPercentageColor(batchSummary.aggregate.avgStudentPercentage)} px-2 rounded`}
+                    >
+                      {batchSummary.aggregate.avgStudentPercentage}%
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">Average per student</p>
+                  </div>
+                </div>
+              </>
+            ) : null}
+          </Card>
+        )}
+
         {/* Students Table */}
         <Card>
           <div className="overflow-x-auto">
@@ -289,6 +535,11 @@ export function PastRecords() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Deactivated On
                   </th>
+                  {batchSummary && (
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Term %
+                    </th>
+                  )}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Action
                   </th>
@@ -297,18 +548,20 @@ export function PastRecords() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {loading ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={batchSummary ? 6 : 5} className="px-6 py-8 text-center text-gray-500">
                       Loading past students...
                     </td>
                   </tr>
                 ) : filteredStudents.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={batchSummary ? 6 : 5} className="px-6 py-8 text-center text-gray-500">
                       {searchTerm ? 'No students found matching your search' : 'No past students found'}
                     </td>
                   </tr>
                 ) : (
-                  filteredStudents.map((student) => (
+                  filteredStudents.map((student) => {
+                    const batchStat = batchSummary?.students.find((s) => s.id === student.id);
+                    return (
                     <tr key={student.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">{student.name}</div>
@@ -324,6 +577,19 @@ export function PastRecords() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {student.deactivatedAt ? formatDate(student.deactivatedAt) : 'N/A'}
                       </td>
+                      {batchSummary && (
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          {batchStat ? (
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs font-bold ${getPercentageColor(batchStat.totalPercentage)}`}
+                            >
+                              {batchStat.totalPercentage}%
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 text-xs">—</span>
+                          )}
+                        </td>
+                      )}
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <Button
                           variant="secondary"
@@ -334,7 +600,8 @@ export function PastRecords() {
                         </Button>
                       </td>
                     </tr>
-                  ))
+                  );
+                  })
                 )}
               </tbody>
             </table>
@@ -380,7 +647,7 @@ export function PastRecords() {
       {/* Filter Panel */}
       {showFilters && (
         <Card className="mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 From Month
@@ -403,18 +670,23 @@ export function PastRecords() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
+            <div className="flex items-end">
+              <Button onClick={handleFullTermFilter} className="w-full bg-purple-600 hover:bg-purple-700">
+                Full Term
+              </Button>
+            </div>
             <div className="flex items-end gap-2">
               <Button onClick={handleApplyFilter} className="flex-1">
-                Apply Filter
+                Apply Range
               </Button>
               <Button variant="secondary" onClick={handleClearFilter}>
-                Clear
+                Reset
               </Button>
             </div>
           </div>
-          {(fromMonth || toMonth) && (
-            <div className="mt-3 text-sm text-gray-600">
-              Showing: {fromMonth || 'Start'} to {toMonth || 'End'}
+          {attendanceSummary?.filterLabel && (
+            <div className="mt-3 text-sm text-indigo-700 bg-indigo-50 px-3 py-2 rounded-lg">
+              Viewing: <strong>{attendanceSummary.filterLabel}</strong>
             </div>
           )}
         </Card>
@@ -437,11 +709,12 @@ export function PastRecords() {
         </Card>
       ) : attendanceSummary?.totalTerm ? (
         <>
-          {/* TOTAL TERM STATISTICS - NEW FEATURE */}
+          {/* Full term — always first month to last month */}
           <Card className="mb-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
             <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
               <Calendar className="w-5 h-5 text-blue-600" />
-              Total Term Statistics
+              Full Term Statistics ({attendanceSummary.totalTerm.firstMonth} —{' '}
+              {attendanceSummary.totalTerm.lastMonth})
             </h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
@@ -528,11 +801,50 @@ export function PastRecords() {
             </div>
           </Card>
 
+          {/* Selected range — when different from full term */}
+          {attendanceSummary.selectedRange &&
+            attendanceSummary.filterMode !== 'term' && (
+              <Card className="mb-6 bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200">
+                <h2 className="text-lg font-bold text-gray-900 mb-4">
+                  Selected Range: {attendanceSummary.selectedRange.firstMonth} —{' '}
+                  {attendanceSummary.selectedRange.lastMonth}
+                </h2>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="bg-white p-3 rounded-lg">
+                    <p className="text-xs text-gray-500">Total Classes</p>
+                    <p className="text-2xl font-bold">{attendanceSummary.selectedRange.totalClasses}</p>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg">
+                    <p className="text-xs text-gray-500">Attended</p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {attendanceSummary.selectedRange.totalAttended}
+                    </p>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg">
+                    <p className="text-xs text-gray-500">Range Attendance %</p>
+                    <p
+                      className={`text-2xl font-bold ${getPercentageColor(attendanceSummary.selectedRange.totalPercentage)}`}
+                    >
+                      {attendanceSummary.selectedRange.totalPercentage}%
+                    </p>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg">
+                    <p className="text-xs text-gray-500">Avg Monthly %</p>
+                    <p
+                      className={`text-2xl font-bold ${getPercentageColor(attendanceSummary.selectedRange.avgMonthlyPercentage)}`}
+                    >
+                      {attendanceSummary.selectedRange.avgMonthlyPercentage}%
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            )}
+
           {/* Monthly Attendance Summary */}
           <Card>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-gray-900">
-                Monthly Attendance Breakdown
+                Monthly Breakdown — {attendanceSummary.filterLabel || 'Full Term'}
               </h2>
               <Button icon={Download} variant="secondary" className="text-xs">
                 Export CSV
@@ -595,35 +907,42 @@ export function PastRecords() {
                     </tr>
                   ))}
                   
-                  {/* TOTAL ROW */}
+                  {/* TOTAL ROW for current filter */}
+                  {(() => {
+                    const row = attendanceSummary.selectedRange || attendanceSummary.totalTerm;
+                    const rowLabel =
+                      attendanceSummary.filterMode === 'term' ? 'FULL TERM TOTAL' : 'SELECTED RANGE TOTAL';
+                    return (
                   <tr className="bg-blue-50 font-bold">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      TOTAL TERM
+                      {rowLabel}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-900">
-                      {attendanceSummary.totalTerm.totalClasses}
+                      {row.totalClasses}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-green-600">
-                      {attendanceSummary.totalTerm.totalAttended}
+                      {row.totalAttended}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-red-600">
-                      {attendanceSummary.totalTerm.totalAbsent}
+                      {row.totalAbsent}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <span className={`px-3 py-1 rounded-full text-sm font-bold ${getPercentageColor(attendanceSummary.totalTerm.totalPercentage)}`}>
-                        {attendanceSummary.totalTerm.totalPercentage}%
+                      <span className={`px-3 py-1 rounded-full text-sm font-bold ${getPercentageColor(row.totalPercentage)}`}>
+                        {row.totalPercentage}%
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        attendanceSummary.totalTerm.status === 'Good' ? 'bg-green-100 text-green-800' :
-                        attendanceSummary.totalTerm.status === 'Average' ? 'bg-yellow-100 text-yellow-800' :
+                        row.status === 'Good' ? 'bg-green-100 text-green-800' :
+                        row.status === 'Average' ? 'bg-yellow-100 text-yellow-800' :
                         'bg-red-100 text-red-800'
                       }`}>
-                        {attendanceSummary.totalTerm.status}
+                        {row.status}
                       </span>
                     </td>
                   </tr>
+                    );
+                  })()}
                 </tbody>
               </table>
             </div>

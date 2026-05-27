@@ -196,13 +196,40 @@ app.post('/api/students/:id/deactivate', async (req, res) => {
 });
 
 // Past Student Records endpoints (read-only)
+app.get('/api/records/batches', async (req, res) => {
+  try {
+    const batches = await mongoService.getPastStudentBatches();
+    res.json({ success: true, data: batches });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/api/records/batch-summary', async (req, res) => {
+  try {
+    const { batch = 'all', from_month, to_month, filter } = req.query;
+    const filterMode = filter === 'term' ? 'term' : from_month || to_month ? 'range' : 'default';
+
+    const data = await pastRecordsService.getBatchAttendanceSummary(batch, {
+      fromMonth: from_month || null,
+      toMonth: to_month || null,
+      filterMode,
+    });
+
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.get('/api/records/students', async (req, res) => {
   try {
-    const { page = 1, limit = 25, search = '' } = req.query;
+    const { page = 1, limit = 25, search = '', batch = '' } = req.query;
     const { students, pagination } = await mongoService.getPastStudentsPaginated({
       page,
       limit,
       search,
+      batch,
     });
 
     await pastRecordsService.logRecordsAccess(
