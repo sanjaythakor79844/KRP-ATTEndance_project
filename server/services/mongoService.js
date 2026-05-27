@@ -327,7 +327,13 @@ class MongoService {
         const conditions = [{ status: { $in: ['deactivated', 'inactive'] } }];
 
         if (batch && batch !== 'all') {
-            conditions.push({ batch });
+            if (batch === '—') {
+                conditions.push({
+                    $or: [{ batch: '—' }, { batch: { $exists: false } }, { batch: '' }, { batch: null }],
+                });
+            } else {
+                conditions.push({ batch });
+            }
         }
 
         if (searchTerm && searchTerm.trim()) {
@@ -355,7 +361,10 @@ class MongoService {
         const digitsOnly = term.replace(/\D/g, '');
         return this.fallbackData.students.filter((s) => {
             if (!['deactivated', 'inactive'].includes(s.status)) return false;
-            if (batch && batch !== 'all' && (s.batch || '—') !== batch) return false;
+            if (batch && batch !== 'all') {
+                const studentBatch = s.batch || '—';
+                if (studentBatch !== batch) return false;
+            }
             if (!term) return true;
             const phone = (s.phone || '').toLowerCase();
             return (

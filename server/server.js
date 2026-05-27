@@ -75,6 +75,12 @@ loadInitialData();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+const ARCHIVED_STATUSES = ['deactivated', 'inactive'];
+
+function isArchivedStudent(student) {
+  return Boolean(student && ARCHIVED_STATUSES.includes(student.status));
+}
+
 // Middleware
 app.use(cors({
   origin: [
@@ -945,6 +951,17 @@ app.get('/api/attendance/mark-email', async (req, res) => {
       `);
     }
 
+    if (isArchivedStudent(student)) {
+      return res.status(403).send(`
+        <!DOCTYPE html>
+        <html><head><title>Archived Student</title><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+        <body style="font-family:Arial,sans-serif;text-align:center;padding:40px;">
+          <h1>Archived Student</h1>
+          <p>Attendance cannot be changed for archived students.</p>
+        </body></html>
+      `);
+    }
+
     // Mark attendance
     const result = await attendanceTrackingService.markAttendance(
       studentId,
@@ -955,12 +972,21 @@ app.get('/api/attendance/mark-email', async (req, res) => {
       'General Class'
     );
 
-    if (result.success) {
-      await mongoService.addLog({
-        action: 'Attendance Marked',
-        details: `${student.name} marked as ${status} (via email)`,
-      });
+    if (!result.success) {
+      return res.status(500).send(`
+        <!DOCTYPE html>
+        <html><head><title>Error</title><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+        <body style="font-family:Arial,sans-serif;text-align:center;padding:40px;">
+          <h1>Failed to Mark Attendance</h1>
+          <p>${result.error || 'Please try again from the dashboard.'}</p>
+        </body></html>
+      `);
     }
+
+    await mongoService.addLog({
+      action: 'Attendance Marked',
+      details: `${student.name} marked as ${status} (via email)`,
+    });
 
     // Return success page
     const statusColors = {
@@ -1118,6 +1144,16 @@ app.get('/api/attendance', async (req, res) => {
 
 app.post('/api/attendance', async (req, res) => {
   try {
+    if (req.body?.studentId) {
+      const student = await mongoService.getStudentById(req.body.studentId);
+      if (isArchivedStudent(student)) {
+        return res.status(403).json({
+          success: false,
+          error: 'Cannot modify attendance for archived students',
+        });
+      }
+    }
+
     const result = await mongoService.addAttendance(req.body);
     if (result.success) {
       await mongoService.addLog({
@@ -1199,10 +1235,10 @@ app.post('/api/attendance/mark', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Student not found' });
     }
 
-    if (student.status === 'deactivated') {
+    if (isArchivedStudent(student)) {
       return res.status(403).json({
         success: false,
-        error: 'Cannot modify attendance for archived (deactivated) students',
+        error: 'Cannot modify attendance for archived students',
       });
     }
 

@@ -379,9 +379,10 @@ export function Attendance() {
 
       const result = await response.json();
       if (result.success) {
-        alert(`✅ ${result.message}\n\n${result.results.map((r: any) => 
-          `${r.student}: ${r.type} (${r.percentage}%)`
-        ).join('\n')}`);
+        const lines = Array.isArray(result.results)
+          ? result.results.map((r: any) => `${r.student}: ${r.type} (${r.percentage}%)`).join('\n')
+          : '';
+        alert(`✅ ${result.message}${lines ? `\n\n${lines}` : ''}`);
       } else {
         alert(`❌ Failed: ${result.error}`);
       }

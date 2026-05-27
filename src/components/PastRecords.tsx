@@ -309,7 +309,7 @@ export function PastRecords() {
 
   const handleApplyFilter = () => {
     if (selectedStudent) {
-      const mode = fromMonth || toMonth ? 'range' : 'default';
+      const mode = fromMonth || toMonth ? 'range' : 'term';
       setFilterMode(mode);
       loadAttendanceSummary(selectedStudent.id, mode);
     }
@@ -628,10 +628,11 @@ export function PastRecords() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl md:text-2xl font-bold text-gray-900">
-              {attendanceSummary?.student.name}
+              {selectedStudent?.name || attendanceSummary?.student.name}
             </h1>
             <p className="text-sm text-gray-600">
-              Batch {attendanceSummary?.student.batch} • {attendanceSummary?.student.email}
+              Batch {selectedStudent?.batch || attendanceSummary?.student.batch} •{' '}
+              {selectedStudent?.email || attendanceSummary?.student.email}
             </p>
           </div>
           <Button

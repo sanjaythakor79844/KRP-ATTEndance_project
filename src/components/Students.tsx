@@ -51,7 +51,7 @@ export function Students() {
     fetchStudents();
   }, []);
 
-  const activeStudents = students.filter((s) => s.status !== 'deactivated');
+  const activeStudents = students.filter((s) => s.status === 'active');
 
   const filteredStudents = activeStudents.filter(student => 
     student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -363,7 +363,7 @@ export function Students() {
 
   // Export students to CSV
   const handleExportCSV = () => {
-    const csvData = students.map(student => ({
+    const csvData = activeStudents.map(student => ({
       name: student.name,
       email: student.email,
       assignmentLimit: student.assignmentLimit,
@@ -386,7 +386,7 @@ export function Students() {
 
   // Export students to Excel
   const handleExportExcel = () => {
-    const excelData = students.map(student => ({
+    const excelData = activeStudents.map(student => ({
       'Name': student.name,
       'Email': student.email,
       'Assignment Limit': student.assignmentLimit,
