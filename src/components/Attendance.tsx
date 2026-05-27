@@ -829,72 +829,72 @@ export function Attendance() {
                         </td>
                         <td className="py-3 px-2 md:px-4">
                           <div className="flex items-center justify-center gap-2 flex-wrap">
-                            {/* Present Button - With Text Label */}
+                            {/* Present Button - Beautiful Modern Design */}
                             <button
                               onClick={() => markAttendance(student.id, 'present')}
                               disabled={marking === student.id || status === 'present'}
-                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-all disabled:cursor-not-allowed relative ${
+                              className={`group inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all duration-300 disabled:cursor-not-allowed relative transform hover:scale-105 active:scale-95 ${
                                 marking === student.id 
-                                  ? 'animate-pulse bg-green-200 text-green-800 border-2 border-green-400' 
+                                  ? 'animate-pulse bg-gradient-to-r from-green-400 to-green-500 text-white shadow-xl shadow-green-300/50 border-2 border-green-400' 
                                   : status === 'present' 
-                                  ? 'bg-green-600 text-white shadow-lg shadow-green-300 border-2 border-green-700' 
-                                  : 'bg-white text-green-700 border-2 border-green-300 hover:bg-green-50 hover:border-green-500 hover:shadow-md'
+                                  ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-2xl shadow-green-400/60 border-2 border-green-600 ring-4 ring-green-200' 
+                                  : 'bg-gradient-to-r from-green-50 to-green-100 text-green-700 border-2 border-green-400 hover:from-green-500 hover:to-green-600 hover:text-white hover:shadow-xl hover:shadow-green-300/50 hover:border-green-600'
                               }`}
                             >
-                              <CheckCircle className="w-4 h-4" />
-                              <span className="hidden sm:inline">Present</span>
-                              <span className="sm:hidden">P</span>
+                              <CheckCircle className={`w-5 h-5 transition-transform duration-300 ${status !== 'present' ? 'group-hover:rotate-12' : ''}`} />
+                              <span className="hidden sm:inline font-bold">Present</span>
+                              <span className="sm:hidden font-bold">P</span>
                               {marking === student.id && (
-                                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-500 rounded-full animate-ping"></span>
+                                <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-ping"></span>
                               )}
                               {status === 'present' && (
-                                <span className="ml-1">✓</span>
+                                <span className="ml-1 text-lg animate-bounce">✓</span>
                               )}
                             </button>
 
-                            {/* Absent Button - With Text Label */}
+                            {/* Absent Button - Beautiful Modern Design */}
                             <button
                               onClick={() => markAttendance(student.id, 'absent')}
                               disabled={marking === student.id || status === 'absent'}
-                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-all disabled:cursor-not-allowed relative ${
+                              className={`group inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all duration-300 disabled:cursor-not-allowed relative transform hover:scale-105 active:scale-95 ${
                                 marking === student.id 
-                                  ? 'animate-pulse bg-red-200 text-red-800 border-2 border-red-400' 
+                                  ? 'animate-pulse bg-gradient-to-r from-red-400 to-red-500 text-white shadow-xl shadow-red-300/50 border-2 border-red-400' 
                                   : status === 'absent' 
-                                  ? 'bg-red-600 text-white shadow-lg shadow-red-300 border-2 border-red-700' 
-                                  : 'bg-white text-red-700 border-2 border-red-300 hover:bg-red-50 hover:border-red-500 hover:shadow-md'
+                                  ? 'bg-gradient-to-r from-red-500 to-red-600 text-white shadow-2xl shadow-red-400/60 border-2 border-red-600 ring-4 ring-red-200' 
+                                  : 'bg-gradient-to-r from-red-50 to-red-100 text-red-700 border-2 border-red-400 hover:from-red-500 hover:to-red-600 hover:text-white hover:shadow-xl hover:shadow-red-300/50 hover:border-red-600'
                               }`}
                             >
-                              <XCircle className="w-4 h-4" />
-                              <span className="hidden sm:inline">Absent</span>
-                              <span className="sm:hidden">A</span>
+                              <XCircle className={`w-5 h-5 transition-transform duration-300 ${status !== 'absent' ? 'group-hover:rotate-12' : ''}`} />
+                              <span className="hidden sm:inline font-bold">Absent</span>
+                              <span className="sm:hidden font-bold">A</span>
                               {marking === student.id && (
-                                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-ping"></span>
+                                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-400 rounded-full animate-ping"></span>
                               )}
                               {status === 'absent' && (
-                                <span className="ml-1">✓</span>
+                                <span className="ml-1 text-lg animate-bounce">✓</span>
                               )}
                             </button>
 
-                            {/* Late Button - With Text Label */}
+                            {/* Late Button - Beautiful Modern Design */}
                             <button
                               onClick={() => markAttendance(student.id, 'late')}
                               disabled={marking === student.id || status === 'late'}
-                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-all disabled:cursor-not-allowed relative ${
+                              className={`group inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all duration-300 disabled:cursor-not-allowed relative transform hover:scale-105 active:scale-95 ${
                                 marking === student.id 
-                                  ? 'animate-pulse bg-yellow-200 text-yellow-800 border-2 border-yellow-400' 
+                                  ? 'animate-pulse bg-gradient-to-r from-yellow-400 to-yellow-500 text-white shadow-xl shadow-yellow-300/50 border-2 border-yellow-400' 
                                   : status === 'late' 
-                                  ? 'bg-yellow-600 text-white shadow-lg shadow-yellow-300 border-2 border-yellow-700' 
-                                  : 'bg-white text-yellow-700 border-2 border-yellow-300 hover:bg-yellow-50 hover:border-yellow-500 hover:shadow-md'
+                                  ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white shadow-2xl shadow-yellow-400/60 border-2 border-yellow-600 ring-4 ring-yellow-200' 
+                                  : 'bg-gradient-to-r from-yellow-50 to-yellow-100 text-yellow-700 border-2 border-yellow-400 hover:from-yellow-500 hover:to-yellow-600 hover:text-white hover:shadow-xl hover:shadow-yellow-300/50 hover:border-yellow-600'
                               }`}
                             >
-                              <Clock className="w-4 h-4" />
-                              <span className="hidden sm:inline">Late</span>
-                              <span className="sm:hidden">L</span>
+                              <Clock className={`w-5 h-5 transition-transform duration-300 ${status !== 'late' ? 'group-hover:rotate-12' : ''}`} />
+                              <span className="hidden sm:inline font-bold">Late</span>
+                              <span className="sm:hidden font-bold">L</span>
                               {marking === student.id && (
-                                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-yellow-500 rounded-full animate-ping"></span>
+                                <span className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full animate-ping"></span>
                               )}
                               {status === 'late' && (
-                                <span className="ml-1">✓</span>
+                                <span className="ml-1 text-lg animate-bounce">✓</span>
                               )}
                             </button>
                           </div>
