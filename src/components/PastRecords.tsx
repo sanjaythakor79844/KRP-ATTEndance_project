@@ -45,6 +45,59 @@ interface AttendanceSummary {
   totalTerm: TotalTermStats;
 }
 
+const EMPTY_TOTAL_TERM: TotalTermStats = {
+  firstMonth: 'N/A',
+  lastMonth: 'N/A',
+  totalClasses: 0,
+  totalAttended: 0,
+  totalPresent: 0,
+  totalAbsent: 0,
+  totalLate: 0,
+  totalPercentage: 0,
+  avgMonthlyPercentage: 0,
+  status: 'Low',
+};
+
+function normalizeSummary(raw: Record<string, unknown> | null): AttendanceSummary | null {
+  if (!raw || !raw.student) return null;
+
+  const student = raw.student as PastStudent;
+  const term = (raw.totalTerm || raw.termSummary) as Record<string, unknown> | undefined;
+
+  const monthlySummary: MonthlyAttendance[] = (
+    (raw.monthlySummary as MonthlyAttendance[]) ||
+    ((raw.months as Record<string, unknown>[]) || []).map((m) => ({
+      month: String(m.month || ''),
+      monthName: String(m.monthName || m.monthLabel || m.month || ''),
+      totalClasses: Number(m.totalClasses) || 0,
+      classesAttended: Number(m.classesAttended) || 0,
+      classesMissed: Number(m.classesMissed) || 0,
+      present: Number(m.present) || 0,
+      absent: Number(m.absent) || 0,
+      late: Number(m.late) || 0,
+      percentage: Number(m.percentage ?? m.attendancePercentage) || 0,
+      status: String(m.status || 'Low'),
+    }))
+  );
+
+  const totalTerm: TotalTermStats = term
+    ? {
+        firstMonth: String(term.firstMonth ?? term.firstMonthLabel ?? 'N/A'),
+        lastMonth: String(term.lastMonth ?? term.lastMonthLabel ?? 'N/A'),
+        totalClasses: Number(term.totalClasses) || 0,
+        totalAttended: Number(term.totalAttended ?? term.classesAttended) || 0,
+        totalPresent: Number(term.totalPresent) || 0,
+        totalAbsent: Number(term.totalAbsent ?? term.classesMissed) || 0,
+        totalLate: Number(term.totalLate) || 0,
+        totalPercentage: Number(term.totalPercentage ?? term.attendancePercentage) || 0,
+        avgMonthlyPercentage: Number(term.avgMonthlyPercentage ?? term.averageAttendancePercentage) || 0,
+        status: String(term.status || 'Low'),
+      }
+    : { ...EMPTY_TOTAL_TERM };
+
+  return { student, monthlySummary, totalTerm };
+}
+
 export function PastRecords() {
   const [students, setStudents] = useState<PastStudent[]>([]);
   const [filteredStudents, setFilteredStudents] = useState<PastStudent[]>([]);
@@ -53,6 +106,7 @@ export function PastRecords() {
   const [selectedStudent, setSelectedStudent] = useState<PastStudent | null>(null);
   const [attendanceSummary, setAttendanceSummary] = useState<AttendanceSummary | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
   
   // Filter states
   const [fromMonth, setFromMonth] = useState('');
@@ -81,10 +135,16 @@ export function PastRecords() {
     setLoading(true);
     try {
       const response = await fetch(`${API_BASE_URL}/api/records/students`);
+      if (!response.ok) {
+        console.error('Past students API error:', response.status);
+        setStudents([]);
+        setFilteredStudents([]);
+        return;
+      }
       const data = await response.json();
       if (data.success) {
-        setStudents(data.data);
-        setFilteredStudents(data.data);
+        setStudents(data.data || []);
+        setFilteredStudents(data.data || []);
       }
     } catch (error) {
       console.error('Error loading past students:', error);
@@ -95,6 +155,7 @@ export function PastRecords() {
 
   const loadAttendanceSummary = async (studentId: string) => {
     setLoadingSummary(true);
+    setSummaryError(null);
     try {
       let url = `${API_BASE_URL}/api/records/students/${studentId}/attendance/summary`;
       const params = new URLSearchParams();
@@ -104,11 +165,29 @@ export function PastRecords() {
 
       const response = await fetch(url);
       const data = await response.json();
-      if (data.success) {
-        setAttendanceSummary(data.data);
+
+      if (!response.ok || !data.success) {
+        setAttendanceSummary(null);
+        setSummaryError(
+          data.error ||
+            (response.status === 404
+              ? 'Past records API not found. Deploy the latest backend to Render.'
+              : 'Failed to load attendance summary.')
+        );
+        return;
       }
+
+      const normalized = normalizeSummary(data.data);
+      if (!normalized) {
+        setAttendanceSummary(null);
+        setSummaryError('Invalid attendance data received from server.');
+        return;
+      }
+      setAttendanceSummary(normalized);
     } catch (error) {
       console.error('Error loading attendance summary:', error);
+      setAttendanceSummary(null);
+      setSummaryError('Network error loading attendance summary.');
     } finally {
       setLoadingSummary(false);
     }
@@ -122,6 +201,7 @@ export function PastRecords() {
   const handleBack = () => {
     setSelectedStudent(null);
     setAttendanceSummary(null);
+    setSummaryError(null);
     setFromMonth('');
     setToMonth('');
     setShowFilters(false);
@@ -238,7 +318,7 @@ export function PastRecords() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                          Batch {student.batch}
+                          {student.batch ? `Batch ${student.batch}` : '—'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -346,7 +426,16 @@ export function PastRecords() {
             Loading attendance summary...
           </div>
         </Card>
-      ) : attendanceSummary ? (
+      ) : summaryError ? (
+        <Card>
+          <div className="text-center py-8">
+            <p className="text-red-600 font-medium mb-2">{summaryError}</p>
+            <p className="text-sm text-gray-500">
+              Ensure the student is deactivated and the backend on Render has the latest code.
+            </p>
+          </div>
+        </Card>
+      ) : attendanceSummary?.totalTerm ? (
         <>
           {/* TOTAL TERM STATISTICS - NEW FEATURE */}
           <Card className="mb-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
@@ -475,7 +564,7 @@ export function PastRecords() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {attendanceSummary.monthlySummary.map((month) => (
+                  {(attendanceSummary.monthlySummary || []).map((month) => (
                     <tr key={month.month} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {month.monthName}

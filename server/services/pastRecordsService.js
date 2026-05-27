@@ -180,6 +180,86 @@ class PastRecordsService {
     };
   }
 
+  mapMonthToClient(monthRow) {
+    const daily = monthRow.dailyRecords || [];
+    const present = daily.filter((d) => d.status === 'present').length;
+    const absent = daily.filter((d) => d.status === 'absent').length;
+    const late = daily.filter((d) => d.status === 'late').length;
+
+    return {
+      month: monthRow.month,
+      monthName: monthRow.monthLabel,
+      totalClasses: monthRow.totalClasses,
+      classesAttended: monthRow.classesAttended,
+      classesMissed: monthRow.classesMissed,
+      present,
+      absent,
+      late,
+      percentage: monthRow.attendancePercentage,
+      status: monthRow.status,
+    };
+  }
+
+  buildTotalTerm(termMonths, termSummary) {
+    const monthlySummary = termMonths.map((m) => this.mapMonthToClient(m));
+    const allDaily = termMonths.flatMap((m) => m.dailyRecords || []);
+
+    const totalPresent = allDaily.filter((d) => d.status === 'present').length;
+    const totalLate = allDaily.filter((d) => d.status === 'late').length;
+    const totalAbsent = allDaily.filter((d) => d.status === 'absent').length;
+
+    const avgMonthlyPercentage =
+      monthlySummary.length > 0
+        ? Math.round(
+            (monthlySummary.reduce((sum, m) => sum + m.percentage, 0) / monthlySummary.length) * 10
+          ) / 10
+        : 0;
+
+    return {
+      firstMonth: termSummary.firstMonthLabel || 'N/A',
+      lastMonth: termSummary.lastMonthLabel || 'N/A',
+      totalClasses: termSummary.totalClasses,
+      totalAttended: termSummary.classesAttended,
+      totalPresent,
+      totalAbsent,
+      totalLate,
+      totalPercentage: termSummary.attendancePercentage,
+      avgMonthlyPercentage,
+      status: termSummary.status,
+    };
+  }
+
+  async getClientAttendanceSummary(studentId, options = {}) {
+    const student = await mongoService.getStudentById(studentId);
+    if (!student) return null;
+
+    const filterMode = options.filterMode || 'default';
+    const summary = await this.getMonthlySummary(studentId, {
+      fromMonth: options.fromMonth || null,
+      toMonth: options.toMonth || null,
+      filterMode,
+    });
+
+    const termSummaryData = await this.getMonthlySummary(studentId, { filterMode: 'term' });
+
+    return {
+      student: {
+        id: student.id,
+        name: student.name,
+        email: student.email || '',
+        batch: student.batch || '—',
+        deactivatedAt: student.deactivatedAt,
+      },
+      monthlySummary: summary.months.map((m) => this.mapMonthToClient(m)),
+      totalTerm: this.buildTotalTerm(termSummaryData.months, termSummaryData.termSummary),
+      months: summary.months,
+      rangeTotals: summary.rangeTotals,
+      termSummary: summary.termSummary,
+      availableMonths: summary.availableMonths,
+      readOnly: true,
+    };
+  }
+
   async logRecordsAccess(action, details, userId = 'admin') {
     await mongoService.addLog({
       action,

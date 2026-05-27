@@ -235,7 +235,7 @@ app.get('/api/records/students/search', async (req, res) => {
 app.get('/api/records/students/:id', async (req, res) => {
   try {
     const student = await mongoService.getStudentById(req.params.id);
-    if (!student || student.status !== 'deactivated') {
+    if (!student || !['deactivated', 'inactive'].includes(student.status)) {
       return res.status(404).json({ success: false, error: 'Past student record not found' });
     }
 
@@ -248,7 +248,7 @@ app.get('/api/records/students/:id', async (req, res) => {
 app.get('/api/records/students/:id/attendance', async (req, res) => {
   try {
     const student = await mongoService.getStudentById(req.params.id);
-    if (!student || student.status !== 'deactivated') {
+    if (!student || !['deactivated', 'inactive'].includes(student.status)) {
       return res.status(404).json({ success: false, error: 'Past student record not found' });
     }
 
@@ -276,18 +276,22 @@ app.get('/api/records/students/:id/attendance', async (req, res) => {
 app.get('/api/records/students/:id/attendance/summary', async (req, res) => {
   try {
     const student = await mongoService.getStudentById(req.params.id);
-    if (!student || student.status !== 'deactivated') {
+    if (!student || !['deactivated', 'inactive'].includes(student.status)) {
       return res.status(404).json({ success: false, error: 'Past student record not found' });
     }
 
     const { from_month, to_month, filter } = req.query;
     const filterMode = filter === 'term' ? 'term' : from_month || to_month ? 'range' : 'default';
 
-    const summary = await pastRecordsService.getMonthlySummary(req.params.id, {
+    const data = await pastRecordsService.getClientAttendanceSummary(req.params.id, {
       fromMonth: from_month || null,
       toMonth: to_month || null,
       filterMode,
     });
+
+    if (!data) {
+      return res.status(404).json({ success: false, error: 'Past student record not found' });
+    }
 
     await pastRecordsService.logRecordsAccess(
       'Past Student Summary Viewed',
@@ -295,14 +299,7 @@ app.get('/api/records/students/:id/attendance/summary', async (req, res) => {
       req.headers['x-user-id'] || 'admin'
     );
 
-    res.json({
-      success: true,
-      data: {
-        student,
-        ...summary,
-        readOnly: true,
-      },
-    });
+    res.json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -2107,226 +2104,6 @@ app.post('/api/attendance/trigger-auto-notifications', async (req, res) => {
       res.status(500).json({ success: false, error: result.error });
     }
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-
-// ============================================
-// PAST STUDENT RECORDS API ENDPOINTS
-// ============================================
-
-// Get all past students (deactivated)
-app.get('/api/records/students', async (req, res) => {
-  try {
-    const pastStudents = await mongoService.getPastStudents();
-    res.json({ success: true, data: pastStudents });
-  } catch (error) {
-    console.error('Error fetching past students:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Search past students by name, email
-app.get('/api/records/students/search', async (req, res) => {
-  try {
-    const { q } = req.query;
-    if (!q) {
-      return res.status(400).json({ success: false, error: 'Search query required' });
-    }
-    
-    const results = await mongoService.searchPastStudents(q);
-    res.json({ success: true, data: results });
-  } catch (error) {
-    console.error('Error searching past students:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Get attendance records for a past student
-app.get('/api/records/students/:id/attendance', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const student = await mongoService.getStudentById(id);
-    
-    if (!student || student.status !== 'deactivated') {
-      return res.status(404).json({ success: false, error: 'Past student not found' });
-    }
-    
-    const allRecords = await mongoService.getAttendance();
-    const studentRecords = allRecords.filter(r => r.studentId === id);
-    
-    res.json({ success: true, data: studentRecords });
-  } catch (error) {
-    console.error('Error fetching past student attendance:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Get monthly attendance summary for a past student with TOTAL TERM stats
-app.get('/api/records/students/:id/attendance/summary', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { from_month, to_month } = req.query;
-    
-    const student = await mongoService.getStudentById(id);
-    
-    if (!student || student.status !== 'deactivated') {
-      return res.status(404).json({ success: false, error: 'Past student not found' });
-    }
-    
-    // Get all attendance records for this student
-    const allRecords = await mongoService.getAttendance();
-    let studentRecords = allRecords.filter(r => r.studentId === id);
-    
-    // Remove duplicates - keep only latest record per date
-    const uniqueRecords = new Map();
-    studentRecords.forEach(record => {
-      const recordDate = new Date(record.timestamp).toISOString().split('T')[0];
-      const existing = uniqueRecords.get(recordDate);
-      if (!existing || new Date(record.timestamp) > new Date(existing.timestamp)) {
-        uniqueRecords.set(recordDate, record);
-      }
-    });
-    
-    studentRecords = Array.from(uniqueRecords.values());
-    
-    // Apply date range filter if provided
-    if (from_month) {
-      const fromDate = new Date(from_month + '-01');
-      studentRecords = studentRecords.filter(r => new Date(r.timestamp) >= fromDate);
-    }
-    if (to_month) {
-      const toDate = new Date(to_month + '-01');
-      toDate.setMonth(toDate.getMonth() + 1); // End of month
-      studentRecords = studentRecords.filter(r => new Date(r.timestamp) < toDate);
-    }
-    
-    // Group by month
-    const monthlyData = {};
-    studentRecords.forEach(record => {
-      const date = new Date(record.timestamp);
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      
-      if (!monthlyData[monthKey]) {
-        monthlyData[monthKey] = {
-          month: monthKey,
-          totalClasses: 0,
-          present: 0,
-          absent: 0,
-          late: 0
-        };
-      }
-      
-      monthlyData[monthKey].totalClasses++;
-      if (record.status === 'present') monthlyData[monthKey].present++;
-      if (record.status === 'absent') monthlyData[monthKey].absent++;
-      if (record.status === 'late') monthlyData[monthKey].late++;
-    });
-    
-    // Convert to array and calculate percentages
-    const monthlySummary = Object.values(monthlyData).map(month => {
-      const attendedClasses = month.present + month.late;
-      const percentage = month.totalClasses > 0 
-        ? Math.round((attendedClasses / month.totalClasses) * 100) 
-        : 0;
-      
-      return {
-        month: month.month,
-        monthName: new Date(month.month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-        totalClasses: month.totalClasses,
-        classesAttended: attendedClasses,
-        classesMissed: month.absent,
-        present: month.present,
-        absent: month.absent,
-        late: month.late,
-        percentage: percentage,
-        status: percentage >= 75 ? 'Good' : percentage >= 60 ? 'Average' : 'Low'
-      };
-    }).sort((a, b) => a.month.localeCompare(b.month));
-    
-    // Calculate TOTAL TERM statistics
-    const totalTermClasses = studentRecords.length;
-    const totalPresent = studentRecords.filter(r => r.status === 'present').length;
-    const totalAbsent = studentRecords.filter(r => r.status === 'absent').length;
-    const totalLate = studentRecords.filter(r => r.status === 'late').length;
-    const totalAttended = totalPresent + totalLate;
-    const totalTermPercentage = totalTermClasses > 0 
-      ? Math.round((totalAttended / totalTermClasses) * 100) 
-      : 0;
-    
-    // Calculate average monthly percentage
-    const avgMonthlyPercentage = monthlySummary.length > 0
-      ? Math.round(monthlySummary.reduce((sum, m) => sum + m.percentage, 0) / monthlySummary.length)
-      : 0;
-    
-    // Get first and last month
-    const firstMonth = monthlySummary.length > 0 ? monthlySummary[0].monthName : 'N/A';
-    const lastMonth = monthlySummary.length > 0 ? monthlySummary[monthlySummary.length - 1].monthName : 'N/A';
-    
-    res.json({ 
-      success: true, 
-      data: {
-        student: {
-          id: student.id,
-          name: student.name,
-          email: student.email,
-          batch: student.batch,
-          deactivatedAt: student.deactivatedAt
-        },
-        monthlySummary: monthlySummary,
-        totalTerm: {
-          firstMonth: firstMonth,
-          lastMonth: lastMonth,
-          totalClasses: totalTermClasses,
-          totalAttended: totalAttended,
-          totalPresent: totalPresent,
-          totalAbsent: totalAbsent,
-          totalLate: totalLate,
-          totalPercentage: totalTermPercentage,
-          avgMonthlyPercentage: avgMonthlyPercentage,
-          status: totalTermPercentage >= 75 ? 'Good' : totalTermPercentage >= 60 ? 'Average' : 'Low'
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching past student summary:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Deactivate a student
-app.post('/api/students/:id/deactivate', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const student = await mongoService.getStudentById(id);
-    
-    if (!student) {
-      return res.status(404).json({ success: false, error: 'Student not found' });
-    }
-    
-    if (student.status === 'deactivated') {
-      return res.status(400).json({ success: false, error: 'Student is already deactivated' });
-    }
-    
-    const result = await mongoService.deactivateStudent(id);
-    
-    if (result.success) {
-      await mongoService.addLog({
-        action: 'Student Deactivated',
-        details: `${student.name} was deactivated and archived`,
-      });
-      
-      res.json({ 
-        success: true, 
-        message: 'Student deactivated and archived successfully',
-        data: { id, name: student.name }
-      });
-    } else {
-      res.status(500).json(result);
-    }
-  } catch (error) {
-    console.error('Error deactivating student:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

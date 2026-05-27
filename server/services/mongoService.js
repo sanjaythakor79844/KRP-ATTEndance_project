@@ -324,7 +324,7 @@ class MongoService {
     }
 
     buildPastStudentQuery(searchTerm = '') {
-        const baseQuery = { status: 'deactivated' };
+        const baseQuery = { status: { $in: ['deactivated', 'inactive'] } };
         if (!searchTerm || !searchTerm.trim()) {
             return baseQuery;
         }
@@ -350,7 +350,7 @@ class MongoService {
         const term = searchTerm.trim().toLowerCase();
         const digitsOnly = term.replace(/\D/g, '');
         return this.fallbackData.students.filter((s) => {
-            if (s.status !== 'deactivated') return false;
+            if (!['deactivated', 'inactive'].includes(s.status)) return false;
             if (!term) return true;
             const phone = (s.phone || '').toLowerCase();
             return (
@@ -368,7 +368,7 @@ class MongoService {
         try {
             if (this.isConnected && this.db) {
                 const students = await this.db.collection('students')
-                    .find({ status: 'deactivated' })
+                    .find({ status: { $in: ['deactivated', 'inactive'] } })
                     .sort({ deactivatedAt: -1 })
                     .toArray();
                 return students.map(student => ({
@@ -376,7 +376,9 @@ class MongoService {
                     _id: student._id.toString()
                 }));
             }
-            return this.fallbackData.students.filter(s => s.status === 'deactivated');
+            return this.fallbackData.students.filter(s =>
+                ['deactivated', 'inactive'].includes(s.status)
+            );
         } catch (error) {
             console.error('❌ Error fetching past students:', error);
             return [];
