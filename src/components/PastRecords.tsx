@@ -1,223 +1,552 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Search, X, Archive, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
+// Past Student Records Component - Complete Implementation
+import { useState, useEffect } from 'react';
 import { Card } from './ui/Card';
+import { Button } from './ui/Button';
+import { Search, Calendar, TrendingUp, TrendingDown, ArrowLeft, Download, Filter } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 
-export interface PastStudent {
+interface PastStudent {
   id: string;
   name: string;
   email: string;
-  phone?: string;
-  batch?: string;
+  batch: string;
+  deactivatedAt: string;
+}
+
+interface MonthlyAttendance {
+  month: string;
+  monthName: string;
+  totalClasses: number;
+  classesAttended: number;
+  classesMissed: number;
+  present: number;
+  absent: number;
+  late: number;
+  percentage: number;
   status: string;
-  deactivatedAt?: string;
 }
 
-interface Pagination {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
+interface TotalTermStats {
+  firstMonth: string;
+  lastMonth: string;
+  totalClasses: number;
+  totalAttended: number;
+  totalPresent: number;
+  totalAbsent: number;
+  totalLate: number;
+  totalPercentage: number;
+  avgMonthlyPercentage: number;
+  status: string;
 }
 
-interface PastRecordsProps {
-  onViewAttendance: (studentId: string) => void;
+interface AttendanceSummary {
+  student: PastStudent;
+  monthlySummary: MonthlyAttendance[];
+  totalTerm: TotalTermStats;
 }
 
-export function PastRecords({ onViewAttendance }: PastRecordsProps) {
+export function PastRecords() {
   const [students, setStudents] = useState<PastStudent[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(25);
-  const [pagination, setPagination] = useState<Pagination>({
-    page: 1,
-    limit: 25,
-    total: 0,
-    totalPages: 1,
-  });
+  const [filteredStudents, setFilteredStudents] = useState<PastStudent[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<PastStudent | null>(null);
+  const [attendanceSummary, setAttendanceSummary] = useState<AttendanceSummary | null>(null);
+  const [loadingSummary, setLoadingSummary] = useState(false);
+  
+  // Filter states
+  const [fromMonth, setFromMonth] = useState('');
+  const [toMonth, setToMonth] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(search);
-      setPage(1);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [search]);
+    loadPastStudents();
+  }, []);
 
-  const fetchPastStudents = useCallback(async () => {
+  useEffect(() => {
+    if (searchTerm.trim() === '') {
+      setFilteredStudents(students);
+    } else {
+      const term = searchTerm.toLowerCase();
+      const filtered = students.filter(s =>
+        s.name.toLowerCase().includes(term) ||
+        s.email.toLowerCase().includes(term) ||
+        s.batch.toLowerCase().includes(term)
+      );
+      setFilteredStudents(filtered);
+    }
+  }, [searchTerm, students]);
+
+  const loadPastStudents = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({
-        page: String(page),
-        limit: String(limit),
-        search: debouncedSearch,
-      });
-      const response = await fetch(`${API_BASE_URL}/api/records/students?${params}`);
-      const result = await response.json();
-      if (result.success) {
-        setStudents(result.data);
-        setPagination(result.pagination);
+      const response = await fetch(`${API_BASE_URL}/api/records/students`);
+      const data = await response.json();
+      if (data.success) {
+        setStudents(data.data);
+        setFilteredStudents(data.data);
       }
     } catch (error) {
-      console.error('Error fetching past students:', error);
+      console.error('Error loading past students:', error);
     } finally {
       setLoading(false);
     }
-  }, [page, limit, debouncedSearch]);
+  };
 
-  useEffect(() => {
-    fetchPastStudents();
-  }, [fetchPastStudents]);
+  const loadAttendanceSummary = async (studentId: string) => {
+    setLoadingSummary(true);
+    try {
+      let url = `${API_BASE_URL}/api/records/students/${studentId}/attendance/summary`;
+      const params = new URLSearchParams();
+      if (fromMonth) params.append('from_month', fromMonth);
+      if (toMonth) params.append('to_month', toMonth);
+      if (params.toString()) url += `?${params.toString()}`;
 
-  const formatDate = (dateStr?: string) => {
-    if (!dateStr) return '—';
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.success) {
+        setAttendanceSummary(data.data);
+      }
+    } catch (error) {
+      console.error('Error loading attendance summary:', error);
+    } finally {
+      setLoadingSummary(false);
+    }
+  };
+
+  const handleViewAttendance = (student: PastStudent) => {
+    setSelectedStudent(student);
+    loadAttendanceSummary(student.id);
+  };
+
+  const handleBack = () => {
+    setSelectedStudent(null);
+    setAttendanceSummary(null);
+    setFromMonth('');
+    setToMonth('');
+    setShowFilters(false);
+  };
+
+  const handleApplyFilter = () => {
+    if (selectedStudent) {
+      loadAttendanceSummary(selectedStudent.id);
+    }
+  };
+
+  const handleClearFilter = () => {
+    setFromMonth('');
+    setToMonth('');
+    if (selectedStudent) {
+      loadAttendanceSummary(selectedStudent.id);
+    }
+  };
+
+  const getPercentageColor = (percentage: number) => {
+    if (percentage >= 75) return 'text-green-600 bg-green-50';
+    if (percentage >= 60) return 'text-yellow-600 bg-yellow-50';
+    return 'text-red-600 bg-red-50';
+  };
+
+  const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
-      day: 'numeric',
+      day: 'numeric'
     });
   };
 
-  return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="mb-6">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="p-2 bg-indigo-100 rounded-lg">
-            <Archive className="w-6 h-6 text-indigo-600" />
+  // Student List View
+  if (!selectedStudent) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-4 md:p-6">
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">
+            📚 Past Student Records
+          </h1>
+          <p className="text-sm text-gray-600">
+            View archived attendance records for deactivated students
+          </p>
+        </div>
+
+        {/* Search Bar */}
+        <Card className="mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <input
+              type="text"
+              placeholder="Search by name, email, or batch..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            )}
           </div>
+        </Card>
+
+        {/* Students Table */}
+        <Card>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Student Name
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Email
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Batch
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Deactivated On
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Action
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {loading ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                      Loading past students...
+                    </td>
+                  </tr>
+                ) : filteredStudents.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                      {searchTerm ? 'No students found matching your search' : 'No past students found'}
+                    </td>
+                  </tr>
+                ) : (
+                  filteredStudents.map((student) => (
+                    <tr key={student.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{student.name}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500">{student.email || 'N/A'}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                          Batch {student.batch}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {student.deactivatedAt ? formatDate(student.deactivatedAt) : 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <Button
+                          variant="secondary"
+                          onClick={() => handleViewAttendance(student)}
+                          className="text-xs"
+                        >
+                          View Attendance
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  // Attendance Detail View
+  return (
+    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
+      {/* Header with Back Button */}
+      <div className="mb-6">
+        <Button
+          icon={ArrowLeft}
+          variant="secondary"
+          onClick={handleBack}
+          className="mb-4"
+        >
+          Back to Past Students
+        </Button>
+        
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Past Student Records</h1>
-            <p className="text-gray-600 text-sm">
-              Archived attendance histories for deactivated students (read-only)
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900">
+              {attendanceSummary?.student.name}
+            </h1>
+            <p className="text-sm text-gray-600">
+              Batch {attendanceSummary?.student.batch} • {attendanceSummary?.student.email}
             </p>
           </div>
+          <Button
+            icon={Filter}
+            variant="secondary"
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            {showFilters ? 'Hide' : 'Show'} Filters
+          </Button>
         </div>
       </div>
 
-      <Card className="mb-6">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search by name, email, or phone number..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-          {search && (
-            <button
-              onClick={() => setSearch('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              aria-label="Clear search"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          )}
-        </div>
-      </Card>
-
-      <Card>
-        {loading ? (
-          <div className="py-12 text-center text-gray-500">Loading past student records...</div>
-        ) : students.length === 0 ? (
-          <div className="py-12 text-center">
-            <Archive className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-600 font-medium">No records found</p>
-            <p className="text-gray-500 text-sm mt-1">
-              {debouncedSearch
-                ? 'Try a different search term'
-                : 'Deactivated students will appear here'}
-            </p>
+      {/* Filter Panel */}
+      {showFilters && (
+        <Card className="mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                From Month
+              </label>
+              <input
+                type="month"
+                value={fromMonth}
+                onChange={(e) => setFromMonth(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                To Month
+              </label>
+              <input
+                type="month"
+                value={toMonth}
+                onChange={(e) => setToMonth(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="flex items-end gap-2">
+              <Button onClick={handleApplyFilter} className="flex-1">
+                Apply Filter
+              </Button>
+              <Button variant="secondary" onClick={handleClearFilter}>
+                Clear
+              </Button>
+            </div>
           </div>
-        ) : (
-          <>
+          {(fromMonth || toMonth) && (
+            <div className="mt-3 text-sm text-gray-600">
+              Showing: {fromMonth || 'Start'} to {toMonth || 'End'}
+            </div>
+          )}
+        </Card>
+      )}
+
+      {loadingSummary ? (
+        <Card>
+          <div className="text-center py-8 text-gray-500">
+            Loading attendance summary...
+          </div>
+        </Card>
+      ) : attendanceSummary ? (
+        <>
+          {/* TOTAL TERM STATISTICS - NEW FEATURE */}
+          <Card className="mb-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
+            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-blue-600" />
+              Total Term Statistics
+            </h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <div className="text-sm text-gray-600 mb-1">Term Period</div>
+                <div className="text-lg font-bold text-gray-900">
+                  {attendanceSummary.totalTerm.firstMonth}
+                </div>
+                <div className="text-xs text-gray-500">to</div>
+                <div className="text-lg font-bold text-gray-900">
+                  {attendanceSummary.totalTerm.lastMonth}
+                </div>
+              </div>
+
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <div className="text-sm text-gray-600 mb-1">Total Classes</div>
+                <div className="text-3xl font-bold text-gray-900">
+                  {attendanceSummary.totalTerm.totalClasses}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  Throughout term
+                </div>
+              </div>
+
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <div className="text-sm text-gray-600 mb-1">Classes Attended</div>
+                <div className="text-3xl font-bold text-green-600">
+                  {attendanceSummary.totalTerm.totalAttended}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  Present: {attendanceSummary.totalTerm.totalPresent} • Late: {attendanceSummary.totalTerm.totalLate}
+                </div>
+              </div>
+
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <div className="text-sm text-gray-600 mb-1">Classes Missed</div>
+                <div className="text-3xl font-bold text-red-600">
+                  {attendanceSummary.totalTerm.totalAbsent}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  Absent days
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm font-medium text-gray-700">
+                    Total Term Attendance %
+                  </div>
+                  {attendanceSummary.totalTerm.totalPercentage >= 75 ? (
+                    <TrendingUp className="w-5 h-5 text-green-600" />
+                  ) : (
+                    <TrendingDown className="w-5 h-5 text-red-600" />
+                  )}
+                </div>
+                <div className={`text-4xl font-bold ${getPercentageColor(attendanceSummary.totalTerm.totalPercentage)} px-4 py-2 rounded-lg inline-block`}>
+                  {attendanceSummary.totalTerm.totalPercentage}%
+                </div>
+                <div className="text-xs text-gray-500 mt-2">
+                  First to last month record
+                </div>
+              </div>
+
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm font-medium text-gray-700">
+                    Average Monthly Attendance %
+                  </div>
+                  {attendanceSummary.totalTerm.avgMonthlyPercentage >= 75 ? (
+                    <TrendingUp className="w-5 h-5 text-green-600" />
+                  ) : (
+                    <TrendingDown className="w-5 h-5 text-red-600" />
+                  )}
+                </div>
+                <div className={`text-4xl font-bold ${getPercentageColor(attendanceSummary.totalTerm.avgMonthlyPercentage)} px-4 py-2 rounded-lg inline-block`}>
+                  {attendanceSummary.totalTerm.avgMonthlyPercentage}%
+                </div>
+                <div className="text-xs text-gray-500 mt-2">
+                  Average across all months
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Monthly Attendance Summary */}
+          <Card>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-gray-900">
+                Monthly Attendance Breakdown
+              </h2>
+              <Button icon={Download} variant="secondary" className="text-xs">
+                Export CSV
+              </Button>
+            </div>
+
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50">
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Student Name</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Student ID</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Batch / Year</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Email</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Phone</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Deactivated</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Action</th>
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Month
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Total Classes
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Attended
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Missed
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Attendance %
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
                   </tr>
                 </thead>
-                <tbody>
-                  {students.map((student, index) => (
-                    <tr
-                      key={student.id}
-                      className={`border-b border-gray-100 hover:bg-gray-50 ${
-                        index % 2 === 1 ? 'bg-gray-50/50' : ''
-                      }`}
-                    >
-                      <td className="py-3 px-4 font-medium text-gray-900">{student.name}</td>
-                      <td className="py-3 px-4 text-gray-600">{student.id}</td>
-                      <td className="py-3 px-4 text-gray-600">{student.batch || '—'}</td>
-                      <td className="py-3 px-4 text-gray-600">{student.email || '—'}</td>
-                      <td className="py-3 px-4 text-gray-600">{student.phone || '—'}</td>
-                      <td className="py-3 px-4 text-gray-600">{formatDate(student.deactivatedAt)}</td>
-                      <td className="py-3 px-4">
-                        <button
-                          onClick={() => onViewAttendance(student.id)}
-                          className="inline-flex items-center gap-1.5 text-indigo-600 hover:text-indigo-800 font-medium"
-                        >
-                          <Eye className="w-4 h-4" />
-                          View Attendance
-                        </button>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {attendanceSummary.monthlySummary.map((month) => (
+                    <tr key={month.month} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {month.monthName}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-900">
+                        {month.totalClasses}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-green-600 font-medium">
+                        {month.classesAttended}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-red-600 font-medium">
+                        {month.classesMissed}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <span className={`px-3 py-1 rounded-full text-sm font-bold ${getPercentageColor(month.percentage)}`}>
+                          {month.percentage}%
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          month.status === 'Good' ? 'bg-green-100 text-green-800' :
+                          month.status === 'Average' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {month.status}
+                        </span>
                       </td>
                     </tr>
                   ))}
+                  
+                  {/* TOTAL ROW */}
+                  <tr className="bg-blue-50 font-bold">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      TOTAL TERM
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-900">
+                      {attendanceSummary.totalTerm.totalClasses}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-green-600">
+                      {attendanceSummary.totalTerm.totalAttended}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-red-600">
+                      {attendanceSummary.totalTerm.totalAbsent}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <span className={`px-3 py-1 rounded-full text-sm font-bold ${getPercentageColor(attendanceSummary.totalTerm.totalPercentage)}`}>
+                        {attendanceSummary.totalTerm.totalPercentage}%
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        attendanceSummary.totalTerm.status === 'Good' ? 'bg-green-100 text-green-800' :
+                        attendanceSummary.totalTerm.status === 'Average' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {attendanceSummary.totalTerm.status}
+                      </span>
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>
-
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-gray-200">
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <span>Rows per page:</span>
-                <select
-                  value={limit}
-                  onChange={(e) => {
-                    setLimit(Number(e.target.value));
-                    setPage(1);
-                  }}
-                  className="border border-gray-300 rounded px-2 py-1"
-                >
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-                <span className="ml-2">
-                  Showing {(page - 1) * limit + 1}–{Math.min(page * limit, pagination.total)} of{' '}
-                  {pagination.total}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                  className="p-2 rounded-lg border border-gray-300 disabled:opacity-40 hover:bg-gray-50"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <span className="text-sm text-gray-600">
-                  Page {page} of {pagination.totalPages}
-                </span>
-                <button
-                  onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
-                  disabled={page >= pagination.totalPages}
-                  className="p-2 rounded-lg border border-gray-300 disabled:opacity-40 hover:bg-gray-50"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </>
-        )}
-      </Card>
+          </Card>
+        </>
+      ) : (
+        <Card>
+          <div className="text-center py-8 text-gray-500">
+            No attendance data available
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

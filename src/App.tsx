@@ -10,11 +10,9 @@ import { Logs } from './components/Logs';
 import { Broadcast } from './components/Broadcast';
 import { Login } from './components/Login';
 import { PastRecords } from './components/PastRecords';
-import { PastStudentAttendance } from './components/PastStudentAttendance';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('attendance');
-  const [selectedPastStudentId, setSelectedPastStudentId] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
@@ -52,9 +50,6 @@ export default function App() {
   };
 
   const handleNavigate = (page: string) => {
-    if (page !== 'records') {
-      setSelectedPastStudentId(null);
-    }
     setCurrentPage(page);
   };
 
@@ -68,18 +63,8 @@ export default function App() {
         return <Projects />;
       case 'students':
         return <Students />;
-      case 'records':
-        if (selectedPastStudentId) {
-          return (
-            <PastStudentAttendance
-              studentId={selectedPastStudentId}
-              onBack={() => setSelectedPastStudentId(null)}
-            />
-          );
-        }
-        return (
-          <PastRecords onViewAttendance={(id) => setSelectedPastStudentId(id)} />
-        );
+      case 'past-records':
+        return <PastRecords />;
       case 'broadcast':
         return <Broadcast />;
       case 'templates':

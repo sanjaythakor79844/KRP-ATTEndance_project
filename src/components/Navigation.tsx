@@ -10,7 +10,7 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'projects', label: 'Projects', icon: FolderKanban },
     { id: 'students', label: 'Students', icon: Users },
-    { id: 'records', label: 'Past Records', icon: Archive },
+    { id: 'past-records', label: 'Past Records', icon: Archive },
     { id: 'broadcast', label: 'Broadcast', icon: Radio },
     { id: 'templates', label: 'Templates', icon: FileText },
     { id: 'logs', label: 'Logs', icon: List },
